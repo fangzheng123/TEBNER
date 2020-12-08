@@ -51,6 +51,28 @@ class EntityUtil(object):
         return split_text_obj_list
 
     @classmethod
+    def get_entity_token_pos(cls, entity_obj, content, tokenizer):
+        """
+        获取实体在bert token中的位置（在某些情况下单词位置和token后的位置不一致）
+        :param entity_obj:
+        :param content:
+        :param tokenizer:
+        :return: 实体位置为: [token_begin ... token_end], token_end即为实体最后一位
+        """
+        offset = entity_obj["offset"]
+        end = offset + len(entity_obj["form"])
+
+        mask_content = content[:offset] + "[MASK]" + content[offset:end] + "[MASK]" + content[end:]
+        mask_token_list = tokenizer.tokenize(mask_content)
+
+        mask_pos_list = [i for i, token in enumerate(mask_token_list) if token == "[MASK]"]
+
+        token_begin = mask_pos_list[0]
+        token_end = mask_pos_list[1] - 2
+
+        return token_begin, token_end
+
+    @classmethod
     def get_entity_word_pos(cls, text_obj):
         """
         获取实体在text中的位置

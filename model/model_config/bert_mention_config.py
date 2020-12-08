@@ -1,17 +1,17 @@
 # encoding: utf-8
 
+import torch
 from model.model_config.base_model_config import BaseConfig
 
-class BERTSentConfig(BaseConfig):
+class BERTMentionConfig(BaseConfig):
     """
     BERT+Softmax NER模型参数配置
     """
-
     def __init__(self, args):
         super().__init__(args)
 
         # 模型存储路径
-        self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_sent_version_" + ".ckpt"
+        self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_mention_classify" + ".ckpt"
 
         # 最大句子长度(padding后，短填长切)
         self.max_seq_len = self.args.max_seq_length
@@ -25,6 +25,8 @@ class BERTSentConfig(BaseConfig):
         self.label_num = len(self.label_list)
         # bert最后一层输出维度
         self.bert_hidden_size = self.args.bert_hidden_size
+        # 全连接分类层输出维度
+        self.dnn_hidden_size = self.args.dnn_hidden_size
         # dropout
         self.dropout = self.args.dropout
         # 损失函数
@@ -37,6 +39,5 @@ class BERTSentConfig(BaseConfig):
         """
         all_names = self.args.label_names
         all_name_list = all_names.split(",")
-        label_list = [item + "-" + name.strip() for name in all_name_list for item in ["B", "I"]]
-        label_list = label_list + ["O"]
-        return label_list
+        return all_name_list
+

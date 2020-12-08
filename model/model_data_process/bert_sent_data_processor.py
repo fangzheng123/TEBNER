@@ -17,27 +17,6 @@ class BERTSentDataProcessor(object):
     def __init__(self, args):
         self.model_config = BERTSentConfig(args)
         self.tokenizer = self.model_config.tokenizer
-        self.entity_util = EntityUtil()
-
-    def get_entity_token_pos(self, entity_obj, content):
-        """
-        获取实体在bert token中的位置（在某些情况下单词位置和token后的位置不一致）
-        :param entity_obj:
-        :param content:
-        :return: 实体位置为: [token_begin ... token_end], token_end即为实体最后一位
-        """
-        offset = entity_obj["offset"]
-        end = offset + len(entity_obj["form"])
-
-        mask_content = content[:offset] + "[MASK]" + content[offset:end] + "[MASK]" + content[end:]
-        mask_token_list = self.tokenizer.tokenize(mask_content)
-
-        mask_pos_list = [i for i, token in enumerate(mask_token_list) if token == "[MASK]"]
-
-        token_begin = mask_pos_list[0]
-        token_end = mask_pos_list[1] - 2
-
-        return token_begin, token_end
 
     def get_seq_label(self, entity_list):
         """
@@ -130,7 +109,7 @@ class BERTSentDataProcessor(object):
                         if entity_obj["type"] == "unknown":
                             continue
                         # 获取实体在bert分词后的位置
-                        token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
+                        token_begin, token_end = EntityUtil.get_entity_token_pos(entity_obj, content, self.tokenizer)
                         # 实体所在位置超过序列最大长度则当前实体不打标
                         if token_end >= self.model_config.max_seq_len - 2:
                             continue
@@ -194,7 +173,7 @@ class BERTSentDataProcessor(object):
         """
         all_entity_list = []
         for seq_score_list, seq_tag_list in zip(all_seq_score_list, all_seq_tag_list):
-            pre_entities = self.entity_util.get_seq_entity(seq_tag_list)
+            pre_entities = EntityUtil.get_seq_entity(seq_tag_list)
             for entity in pre_entities:
                 token_num = entity[2] - entity[1] + 1
                 if entity[2] - entity[1] + 1 == 0:

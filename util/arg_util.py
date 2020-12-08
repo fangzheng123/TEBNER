@@ -60,7 +60,13 @@ class ArgparseUtil(object):
         self.parser.add_argument("--word_vec_path", default=None, type=str, required=True)
         self.parser.add_argument("--seed_entity_path", default=None, type=str, required=True)
         self.parser.add_argument("--phrase_path", default=None, type=str, required=True)
+        self.parser.add_argument("--gold_entity_path", default=None, type=str, required=True)
+
         self.parser.add_argument("--part_word_vec_path", default=None, type=str, required=True)
+        self.parser.add_argument("--phrase_label_path", default=None, type=str, required=True)
+
+        args = self.parser.parse_args()
+        return args
 
     def distance_label_argparse(self):
         """
@@ -108,6 +114,7 @@ class ArgparseUtil(object):
         self.parser.add_argument("--pred_result_path", default=None, type=str)
         self.parser.add_argument("--output_path", default=None, type=str)
 
+
     def bert_sent_add_parse(self):
         self.bert_model_argparse()
 
@@ -142,6 +149,19 @@ class ArgparseUtil(object):
                                  help="Epsilon for Adam optimizer.")
         self.parser.add_argument("--warmup_proportion", default=0.1, type=float,
                                  help="Proportion of training to perform linear learning rate warmup for,E.g., 0.1 = 10% of training.")
+
+    def bert_mention_classify_argparse(self):
+        """
+        bert mention分类模型参数解析
+        :return:
+        """
+        self.bert_sent_add_parse()
+
+        self.parser.add_argument("--dnn_hidden_size", default=256, type=int)
+
+        args = self.parser.parse_args()
+
+        return args
 
     def bert_sent_argparse(self):
         """

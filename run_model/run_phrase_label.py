@@ -4,22 +4,21 @@ import sys
 sys.path.append("../BERTAutoNER")
 
 import os
-import numpy as np
-from sklearn import neighbors
-
 from model.model_data_process.phrase_data_processor import PhraseProcessor
+from model.model_process.phrase_label_process import PhraseLabelProcess
 from util.file_util import FileUtil
 from util.arg_util import ArgparseUtil
+from util.log_util import LogUtil
 
 class PhraseLabel(object):
     """
     短语标注
     """
-
     def __init__(self, args):
         # 脚本加入的参数
         self.args = args
         self.phrase_processor = PhraseProcessor()
+        self.label_process = PhraseLabelProcess()
 
     def load_entity_phrase_vec(self, seed_entity_dict, all_phrase_list):
         """
@@ -42,33 +41,39 @@ class PhraseLabel(object):
 
         return all_entity_vec_dict, all_phrase_vec_dict
 
-    def label_phrase(self, seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict):
+    def phrase_label(self, seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict):
         """
-        根据词向量打标短语类型
+        短语标注
         :param seed_entity_dict:
         :param all_phrase_list:
         :param all_entity_vec_dict:
         :param all_phrase_vec_dict:
         :return:
         """
-        entity_vec_list = []
-        entity_type_list = []
-        for entity_name, entity_vec in all_entity_vec_dict.items():
-            entity_vec_list.append(entity_vec)
-            entity_type_list.append(seed_entity_dict[entity_name])
-        entity_type_index_dict = {entity_type: index for index, entity_type in enumerate(list(set(entity_type_list)))}
-        entity_index_type_dict = {index: entity_type for entity_type, index in entity_type_index_dict.items()}
-        type_index_list = [entity_type_index_dict[entity_type] for entity_type in entity_type_list]
+        # 使用KNN模型对短语进行标注
+        knn_phrase_entity_dict = self.label_process.label_phrase_by_knn(
+            seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
+        self.eval_phrase_label(knn_phrase_entity_dict, seed_entity_dict)
 
-        knn_clf = neighbors.KNeighborsClassifier(5, weights='distance', metric="euclidean")\
-            .fit(np.array(entity_vec_list), np.array(type_index_list))
+    def eval_phrase_label(self, phrase_entity_dict, seed_entity_dict):
+        """
+        评测短语打标正确率
+        :param phrase_type_dict:
+        :return:
+        """
+        gold_entity_dict = FileUtil.read_entity_type_dict(self.args.gold_entity_path)
 
-        phrase_type_dict = {}
-        for phrase in all_phrase_list:
-            if phrase in seed_entity_dict:
-                phrase_type_dict[phrase] = seed_entity_dict[phrase]
-            elif phrase in all_phrase_vec_dict:
-                print(phrase, entity_index_type_dict[knn_clf.predict(np.array([all_phrase_vec_dict[phrase]]))[0]])
+        right_count = 0
+        for phrase, entity_tuple in phrase_entity_dict.items():
+            phrase_type = seed_entity_dict[entity_tuple[0]]
+            if phrase in gold_entity_dict and phrase_type.lower() == gold_entity_dict[phrase]:
+                right_count += 1
+                print("right:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
+            elif phrase in gold_entity_dict:
+                print("wrong:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
+
+        LogUtil.logger.info("短语打标正确数:{0}, 总短语数: {1}, 短语打标正确率为: {2}".format(
+            right_count, len(phrase_entity_dict), right_count / len(phrase_entity_dict)))
 
     def main(self):
         """
@@ -84,7 +89,7 @@ class PhraseLabel(object):
         all_entity_vec_dict, all_phrase_vec_dict = self.load_entity_phrase_vec(seed_entity_dict, all_phrase_list)
 
         # 打标短语类型
-        self.label_phrase(seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
+        self.phrase_label(seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
 
 if __name__ == "__main__":
     args = ArgparseUtil().phrase_label_argparse()

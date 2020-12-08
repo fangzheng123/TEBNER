@@ -77,7 +77,7 @@ class SeqEntityMetric(object):
         return metric_result_dict
 
     def get_metric_by_seqeval(self, pred_seqs, label_seqs, id2label):
-        """get_metric_by_seqeval
+        """
         通过seqeval来评估
         :param pred_seqs:
         :param label_seqs:

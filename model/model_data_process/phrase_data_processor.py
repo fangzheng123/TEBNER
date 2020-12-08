@@ -9,7 +9,6 @@ class PhraseProcessor(object):
     """
     短语数据处理
     """
-
     def get_mention_word_vec(self, all_mention_list, all_vec_path):
         """
         从全量词向量中获取mention中出现词的词向量
@@ -67,6 +66,7 @@ class PhraseProcessor(object):
 
         if len(_vec_list) > 0:
             _vec_list = np.mean(np.array(_vec_list), axis=0).tolist()
+            # _vec_list = np.max(np.array(_vec_list), axis=0).tolist()
 
         return _vec_list
 
