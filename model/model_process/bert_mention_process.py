@@ -155,3 +155,30 @@ class BERTMentionProcess(object):
         :param predict_loader:
         :return:
         """
+        # 加载模型
+        self.model_util.load_model(model, self.model_config.model_save_path, self.model_config.device)
+
+        model.eval()
+        if torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        all_predict_id_list = []
+        all_score_list = []
+        with torch.no_grad():
+            for i, batch_data in enumerate(predict_loader):
+                # 将数据加载到gpu
+                batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
+                input_ids, input_mask, type_ids, mention_begins, mention_ends, label_ids = batch_data
+                outputs = model((input_ids, input_mask, type_ids, mention_begins, mention_ends))
+                scores, pred_ids = torch.max(outputs.data, axis=1)
+                scores = scores.cpu().numpy().tolist()
+                pred_ids = pred_ids.cpu().numpy().tolist()
+                all_predict_id_list.extend(pred_ids)
+                all_score_list.extend(scores)
+
+        all_pred_label_list = [self.model_config.id_label_dict[pred_id] for pred_id in all_predict_id_list]
+
+        return all_pred_label_list, all_score_list
+
+
+

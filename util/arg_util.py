@@ -73,6 +73,9 @@ class ArgparseUtil(object):
         远程标注参数解析
         :return:
         """
+        self.parser.add_argument("--do_source_distance", action="store_true")
+        self.parser.add_argument("--do_add_distance", action="store_true")
+
         # 用户传入文件参数
         self.parser.add_argument("--seed_entity_path", default=None, type=str, required=True)
         self.parser.add_argument("--phrase_path", default=None, type=str, required=True)
@@ -84,6 +87,12 @@ class ArgparseUtil(object):
         self.parser.add_argument("--train_distance_data_path", default=None, type=str, required=True)
         self.parser.add_argument("--dev_distance_data_path", default=None, type=str, required=True)
         self.parser.add_argument("--test_distance_data_path", default=None, type=str, required=True)
+
+        # 新增分类短语
+        self.parser.add_argument("--phrase_label_path", default=None, type=str, required=True)
+        self.parser.add_argument("--add_train_distance_data_path", default=None, type=str, required=True)
+        self.parser.add_argument("--add_dev_distance_data_path", default=None, type=str, required=True)
+        self.parser.add_argument("--add_test_distance_data_path", default=None, type=str, required=True)
 
         args = self.parser.parse_args()
         return args
@@ -105,6 +114,7 @@ class ArgparseUtil(object):
         self.parser.add_argument("--do_train", action="store_true")
         self.parser.add_argument("--do_test", action="store_true")
         self.parser.add_argument("--do_predict", action="store_true")
+        self.parser.add_argument("--do_eval", action="store_true")
 
         # 模型数据相关参数
         self.parser.add_argument("--train_data_path", default=None, type=str)
@@ -157,6 +167,10 @@ class ArgparseUtil(object):
         """
         self.bert_sent_add_parse()
 
+        self.parser.add_argument("--seed_entity_path", default=None, type=str, required=True)
+        self.parser.add_argument("--gold_entity_path", default=None, type=str, required=True)
+        self.parser.add_argument("--phrase_type_score_path", default=None, type=str, required=True)
+        self.parser.add_argument("--phrase_label_path", default=None, type=str, required=True)
         self.parser.add_argument("--dnn_hidden_size", default=256, type=int)
 
         args = self.parser.parse_args()

@@ -106,6 +106,32 @@ class FileUtil(object):
         return word_vec_dict
 
     @classmethod
+    def save_mention_score(cls, mention_type_score_list, mention_type_score_path):
+        """
+        存储mention分类结果
+        :param mention_type_score_path:
+        :return:
+        """
+        with open(mention_type_score_path, "w", encoding="utf-8") as mention_type_score_file:
+            for mention_type_score in mention_type_score_list:
+                mention_type_score_file.write("\t".join(mention_type_score) + "\n")
+
+    @classmethod
+    def read_mention_score(cls, mention_type_score_path):
+        """
+        读取mention分类结果
+        :param mention_type_score_path:
+        :return:
+        """
+        mention_type_score_list = []
+        with open(mention_type_score_path, "r", encoding="utf-8") as mention_type_score_file:
+            for item in mention_type_score_file:
+                item = item.strip()
+                mention_type_score_list.append(item.split("\t"))
+
+        return mention_type_score_list
+
+    @classmethod
     def save_user_cut_dict(cls, entity_type_dict, cut_user_dict_path):
         """
         构建自定义词典，分词用

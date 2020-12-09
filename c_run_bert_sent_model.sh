@@ -28,9 +28,9 @@ mkdir -p $FINE_TUNING_MODEL_DIR
 
 ####################用户需提供的数据#####################
 # 模型训练、验证、测试文件
-TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
-DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
-TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
+TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_train_dev_distance_data
+DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
+TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 
 # 日志
 LOG_FILE=train_bert_sent_log_2

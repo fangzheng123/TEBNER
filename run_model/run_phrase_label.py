@@ -58,22 +58,26 @@ class PhraseLabel(object):
     def eval_phrase_label(self, phrase_entity_dict, seed_entity_dict):
         """
         评测短语打标正确率
-        :param phrase_type_dict:
+        :param phrase_entity_dict:
+        :param seed_entity_dict:
         :return:
         """
         gold_entity_dict = FileUtil.read_entity_type_dict(self.args.gold_entity_path)
 
         right_count = 0
+        all_count = 0
         for phrase, entity_tuple in phrase_entity_dict.items():
             phrase_type = seed_entity_dict[entity_tuple[0]]
             if phrase in gold_entity_dict and phrase_type.lower() == gold_entity_dict[phrase]:
                 right_count += 1
+                all_count += 1
                 print("right:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
             elif phrase in gold_entity_dict:
+                all_count += 1
                 print("wrong:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
 
-        LogUtil.logger.info("短语打标正确数:{0}, 总短语数: {1}, 短语打标正确率为: {2}".format(
-            right_count, len(phrase_entity_dict), right_count / len(phrase_entity_dict)))
+        LogUtil.logger.info("短语打标正确数:{0}, 存在于标注集的总短语数: {1}, 短语打标正确率为: {2}".format(
+            right_count, all_count, right_count / all_count))
 
     def main(self):
         """
