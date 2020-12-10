@@ -38,7 +38,7 @@ class BERTWordRun(object):
         LogUtil.logger.info("Loading data...")
 
         train_dataloader = self.bert_data_processor.load_dataset(self.args.train_data_path, is_train=True)
-        dev_dataloader = self.bert_data_processor.load_dataset(self.args.dev_data_path, is_dev=True)
+        dev_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(self.args.dev_data_path, is_dev=True)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -46,7 +46,7 @@ class BERTWordRun(object):
 
         # 训练模型
         LogUtil.logger.info("Training model...")
-        self.bert_word_process.train(self.bert_word_model, train_dataloader, dev_dataloader)
+        self.bert_word_process.train(self.bert_word_model, train_dataloader, dev_dataloader, sent_entity_dict)
 
         LogUtil.logger.info("Finished Training model!!!")
 
@@ -57,7 +57,7 @@ class BERTWordRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        test_dataloader = self.bert_data_processor.load_dataset(self.args.test_data_path, is_test=True)
+        test_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(self.args.test_data_path, is_test=True)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致

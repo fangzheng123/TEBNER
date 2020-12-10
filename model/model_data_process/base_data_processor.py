@@ -77,7 +77,6 @@ class BaseDataProcessor(object):
         获取实体在bert token中的位置（在某些情况下单词位置和token后的位置不一致）
         :param entity_obj:
         :param content:
-        :param tokenizer:
         :return: 实体位置为: [token_begin ... token_end], token_end即为实体最后一位
         """
         offset = entity_obj["offset"]

@@ -6,12 +6,10 @@ from util.file_util import FileUtil
 
 if __name__ == "__main__":
 
-    x = [[1,1], [2,2], [3,3], [4,4]]
-    y = [1, 0, 0, 1]
-    clf = neighbors.KNeighborsClassifier(2, weights='distance', metric="euclidean")
-    clf.fit(x, y)
+    x =[(1,2), (2,3)]
 
-    print(clf.predict(np.array([[2, 3]])))
+    if (1,2) in x:
+        print("fdsfsdsdf")
 
 
 

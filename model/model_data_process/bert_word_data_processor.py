@@ -62,23 +62,24 @@ class BERTWordProcessor(BaseDataProcessor):
         all_entity_begins = []
         all_entity_ends = []
         all_entity_type_labels = []
+        all_sent_index_list = []
 
         # 用于bios格式
         all_bios_word_list = []
         # 用于bert模型输入
         all_token_encode_list = []
-        for split_text_obj in all_split_text_obj_list:
+        # 用于评测
+        sent_entity_dict = {}
+        for sent_index, split_text_obj in enumerate(all_split_text_obj_list):
             content = split_text_obj["text"]
             encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
                                                       max_length=self.model_config.max_seq_len)
-
-            # 打标数据（is_predict数据无标注）
+            # 打标数据
             if is_train or is_dev or is_test:
                 if is_train:
                     entity_list = split_text_obj["distance_entity_list"]
                 else:
                     entity_list = split_text_obj["entity_list"]
-
                 seq_entity_num = 0
                 for entity_obj in entity_list:
                     # 获取实体在token列表中的首尾位置
@@ -93,32 +94,45 @@ class BERTWordProcessor(BaseDataProcessor):
 
                     # 训练时不考虑unknown类别(即提前挖掘的高质量短语)
                     if entity_obj["type"] != "unknown":
-                        # 加 [CLS]
-                        all_entity_begins.append(entity_token_begin + 1)
-                        all_entity_ends.append(entity_token_end + 1)
-                        all_entity_type_labels.append(self.model_config.type_label_id_dict[entity_obj["type"]])
-                        seq_entity_num += 1
+                        if is_train:
+                            # 加 [CLS]
+                            all_entity_begins.append(entity_token_begin + 1)
+                            all_entity_ends.append(entity_token_end + 1)
+                            all_entity_type_labels.append(self.model_config.type_label_id_dict[entity_obj["type"]])
+                            seq_entity_num += 1
+                        else:
+                            sent_entity_dict.setdefault(sent_index, [])\
+                                .append((entity_token_begin + 1, entity_token_end + 1,
+                                         self.model_config.type_label_id_dict[entity_obj["type"]]))
 
                 # 对序列中每个词语打标
                 seq_connect_label, seq_type_label, token_connect_mask = self.get_token_label(entity_list, encoded_dict)
-                # 每个实体将单独预测，因此一个句子中含有n个实体时，将被训练n次
-                all_token_encode_list.extend([encoded_dict for _ in range(seq_entity_num)])
-                all_token_connect_mask.extend([token_connect_mask for _ in range(seq_entity_num)])
-                all_token_connect_labels.extend([[self.model_config.connect_label_id_dict[ele] for ele
-                                                  in seq_connect_label] for _ in range(seq_entity_num)])
-
+                # 训练时每个实体将单独预测，因此一个句子中含有n个实体时，将被复制n次
+                if is_train:
+                    all_token_encode_list.extend([encoded_dict for _ in range(seq_entity_num)])
+                    all_token_connect_mask.extend([token_connect_mask for _ in range(seq_entity_num)])
+                    all_token_connect_labels.extend([[self.model_config.connect_label_id_dict[ele] for ele
+                                                      in seq_connect_label] for _ in range(seq_entity_num)])
+                    all_sent_index_list.extend([sent_index for _ in range(seq_entity_num)])
+                else:
+                    all_token_encode_list.append(encoded_dict)
+                    all_token_connect_mask.append(token_connect_mask)
+                    all_token_connect_labels.append([self.model_config.connect_label_id_dict[ele] for ele
+                                                      in seq_connect_label])
+                    all_sent_index_list.append(sent_index)
+                    all_entity_begins.append(0)
+                    all_entity_ends.append(0)
+                    all_entity_type_labels.append(self.model_config.type_label_id_dict["None"])
             # 非打标数据
             else:
-                token_connect_mask = encoded_dict["attention_mask"][:-1]
-                all_token_connect_mask.append(token_connect_mask)
+                all_token_encode_list.append(encoded_dict)
+                all_token_connect_mask.append(encoded_dict["attention_mask"][:-1])
                 all_token_connect_labels.append([self.model_config.connect_label_id_dict["B"]]
                                                 * (self.model_config.max_seq_len - 1))
                 all_entity_begins.append(0)
                 all_entity_ends.append(0)
                 all_entity_type_labels.append(self.model_config.type_label_id_dict["None"])
-
-                all_token_encode_list.append(encoded_dict)
-
+                all_sent_index_list.append(sent_index)
                 seq_connect_label = ["B"] * (self.model_config.max_seq_len - 1)
                 seq_type_label = ["None"] * self.model_config.max_seq_len
 
@@ -143,6 +157,7 @@ class BERTWordProcessor(BaseDataProcessor):
         all_entity_begins = torch.LongTensor(all_entity_begins)
         all_entity_ends = torch.LongTensor(all_entity_ends)
         all_entity_type_labels = torch.LongTensor(all_entity_type_labels)
+        all_sent_indexs = torch.LongTensor(all_sent_index_list)
 
         # for i in range(4):
         #     print(all_input_ids[i])
@@ -156,7 +171,7 @@ class BERTWordProcessor(BaseDataProcessor):
 
         tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_token_type_ids,
                                        all_token_connect_masks, all_token_connect_labels,
-                                       all_entity_begins, all_entity_ends, all_entity_type_labels)
+                                       all_entity_begins, all_entity_ends, all_entity_type_labels, all_sent_indexs)
 
         if is_train:
             batch_size = self.model_config.train_batch_size
@@ -169,7 +184,11 @@ class BERTWordProcessor(BaseDataProcessor):
             data_sampler = SequentialSampler(tensor_dataset)
 
         dataloader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=batch_size)
-        return dataloader
+
+        if is_dev or is_test:
+            return dataloader, sent_entity_dict
+        else:
+            return dataloader
 
     def output_entity(self, all_seq_entity_dict, data_path, output_path):
         """

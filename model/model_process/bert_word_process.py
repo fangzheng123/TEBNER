@@ -50,7 +50,7 @@ class BERTWordProcess(object):
         loss = loss_func(entity_type_outputs, entity_type_labels)
         return loss
 
-    def train(self, model, train_loader, dev_loader):
+    def train(self, model, train_loader, dev_loader, sent_entity_dict):
         """
         训练模型
         :param model:
@@ -89,8 +89,8 @@ class BERTWordProcess(object):
             for i, batch_data in enumerate(train_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, token_type_ids, token_connect_masks, \
-                token_connect_labels, entity_begins, entity_ends, entity_type_labels = batch_data
+                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels,\
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
 
@@ -115,18 +115,18 @@ class BERTWordProcess(object):
                 scheduler.step()
 
                 # 每多少轮输出在训练集和验证集上的效果
-                # LogUtil.logger.info("total_batch: {0}".format(total_batch))
+                LogUtil.logger.info("total_batch: {0}".format(total_batch))
                 if total_batch % self.model_config.per_eval_batch_step == 0:
                     # torch.max返回一个元组（最大值列表, 最大值对应的index列表）
                     token_pred_ids = torch.max(token_connect_output.data, axis=2)[1]
                     type_pred_ids = torch.max(entity_type_output.data, axis=1)[1]
 
-                    # 计算当前train_batch P R F1
+                    # 计算当前train_batch acc
                     self.model_metric.reset()
                     metric_arg_list = [token_pred_ids, type_pred_ids, entity_begins, entity_ends, entity_type_labels]
                     metric_arg_list = [ele.cpu().numpy().tolist() for ele in metric_arg_list]
-                    self.model_metric.update(*metric_arg_list)
-                    train_acc = self.model_metric.get_metric_result()
+                    self.model_metric.update_batch_result(*metric_arg_list)
+                    train_acc = self.model_metric.get_acc_result()
                     # 验证集上验证
                     dev_loss, dev_acc = self.evaluate(model, dev_loader)
                     if dev_acc > dev_best_result:
@@ -137,10 +137,9 @@ class BERTWordProcess(object):
                     else:
                         improve = ""
 
-                    msg = "Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  " \
-                          "Dev Loss: {3:>5.2},  Dev Acc: {4:>6.2%}, {5}"
-                    LogUtil.logger.info(msg.format(total_batch, loss.item(), train_acc,
-                                     dev_loss, dev_acc, improve))
+                    msg = "Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%}, Dev Loss: {3:>5.2},  " \
+                          "Dev Acc: {4:>6.2%}, {5}"
+                    LogUtil.logger.info(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, improve))
                     model.train()
                 total_batch += 1
                 if total_batch - last_improve > self.model_config.require_improvement:
@@ -166,7 +165,8 @@ class BERTWordProcess(object):
             for i, batch_data in enumerate(data_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, entity_begins, entity_ends, entity_type_labels = batch_data
+                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
 
@@ -188,15 +188,39 @@ class BERTWordProcess(object):
                 token_pred_ids = torch.max(token_connect_output.data, axis=2)[1]
                 type_pred_ids = torch.max(entity_type_output.data, axis=1)[1]
 
-                # 计算当前train_batch P R F1
+                # 计算当前batch acc
                 metric_arg_list = [token_pred_ids, type_pred_ids, entity_begins, entity_ends, entity_type_labels]
                 metric_arg_list = [ele.cpu().numpy().tolist() for ele in metric_arg_list]
-                self.model_metric.update(*metric_arg_list)
+                self.model_metric.update_batch_result(*metric_arg_list)
 
         dev_loss = loss_total / len(data_loader)
-        dev_acc = self.model_metric.get_metric_result()
+
+        dev_acc = self.model_metric.get_acc_result()
 
         return dev_loss, dev_acc
+
+    def evaluate_connect_type(self, model, data_loader, sent_entity_dict):
+        """
+        验证模型
+        :param model:
+        :param data_loader:
+        :return:
+        """
+        model.eval()
+        loss_total = 0
+
+        self.model_metric.reset()
+        with torch.no_grad():
+            for i, batch_data in enumerate(data_loader):
+                # 将数据加载到gpu
+                batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
+                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
+
+                sequence_output = model((input_ids, input_mask, token_type_ids))
+
+
+
 
     def test(self, model, test_loader):
         """
@@ -219,7 +243,7 @@ class BERTWordProcess(object):
         """
         根据连接关系推测实体边界
         :param connect_scores: 连接关系分数, shape=(B,S-1)
-        :param connect_outputs: 连接关系, shape=(B,W-1)
+        :param connect_outputs: 连接关系, shape=(B,S-1)
         :return:
         """
         # 包含实体的序列号
@@ -253,10 +277,8 @@ class BERTWordProcess(object):
         :param args:
         :return:
         """
-        all_outputs = []
         seq_index_list, entity_begin_list, entity_end_list, outputs = args
-        for index in seq_index_list:
-            all_outputs.append(outputs[index])
+        all_outputs = [outputs[index] for index in seq_index_list]
 
         entity_begins = torch.LongTensor(entity_begin_list).to(self.model_config.device)
         entity_ends = torch.LongTensor(entity_end_list).to(self.model_config.device)
@@ -277,12 +299,12 @@ class BERTWordProcess(object):
 
         batch_seq_entity_dict = {}
         for entity_index, entity_type_id in enumerate(entity_type):
-            entity_dict = {}
-            entity_dict["type"] = self.model_config.type_id_label_dict[entity_type_id]
-            entity_dict["token_pos"] = (entity_begins[entity_index], entity_ends[entity_index])
-            entity_dict["connect_score"] = seq_connect_score_dict[entity_index]
-            entity_dict["type_score"] = entity_type_scores[entity_index]
-
+            entity_dict = {
+                "type": self.model_config.type_id_label_dict[entity_type_id],
+                "token_pos": (entity_begins[entity_index], entity_ends[entity_index]),
+                "connect_score": seq_connect_score_dict[entity_index],
+                "type_score": entity_type_scores[entity_index]
+            }
             if seq_entity_index_dict[entity_index] not in batch_seq_entity_dict:
                 batch_seq_entity_dict[seq_entity_index_dict[entity_index]] = [entity_dict]
             else:
@@ -311,7 +333,8 @@ class BERTWordProcess(object):
             for i, batch_data in enumerate(data_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, entity_begins, entity_ends, entity_type_labels = batch_data
+                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
+                entity_begins, entity_ends, entity_type_labels = batch_data
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
                 if torch.cuda.device_count() > 1:
@@ -342,9 +365,11 @@ class BERTWordProcess(object):
                 entity_type_scores, entity_type = torch.max(entity_type_output.data, axis=1)
 
                 # 获取每个序列中包含的实体及对应的分数
-                batch_seq_entity_dict = self.get_entity_type_scoce(entity_type.cpu().numpy().tolist(), entity_type_scores.cpu().numpy().tolist(), \
-                                           entity_begins.cpu().numpy().tolist(), entity_ends.cpu().numpy().tolist(), \
-                                           seq_entity_index_dict, seq_connect_score_dict)
+                batch_seq_entity_dict = self.get_entity_type_scoce(entity_type.cpu().numpy().tolist(),
+                                                                   entity_type_scores.cpu().numpy().tolist(),
+                                                                   entity_begins.cpu().numpy().tolist(),
+                                                                   entity_ends.cpu().numpy().tolist(),
+                                                                   seq_entity_index_dict, seq_connect_score_dict)
 
                 for seq_index, entity_list in batch_seq_entity_dict.items():
                     all_seq_entity_dict[seq_index + batch_num] = entity_list

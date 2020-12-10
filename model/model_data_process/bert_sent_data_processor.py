@@ -9,7 +9,6 @@ from util.entity_util import EntityUtil
 from util.file_util import FileUtil
 from model.model_data_process.base_data_processor import BaseDataProcessor
 
-
 class BERTSentDataProcessor(BaseDataProcessor):
     """
     加载BERT 序列标注模型的训练、验证、测试数据
