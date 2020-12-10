@@ -1,37 +1,17 @@
 # encoding: utf-8
 
-import json
 import torch
 from torch.utils.data import DataLoader, TensorDataset, RandomSampler, SequentialSampler
 
 from util.entity_util import EntityUtil
-from model.model_config.bert_mention_config import BERTMentionConfig
+from model.model_data_process.base_data_processor import BaseDataProcessor
 
-class BERTMentionDataProcessor(object):
+class BERTMentionDataProcessor(BaseDataProcessor):
     """
     BERT Mention分类模型处理
     """
-    def __init__(self, args):
-        self.model_config = BERTMentionConfig(args)
-        self.tokenizer = self.model_config.tokenizer
-
-    def get_split_text_obj(self, data_path):
-        """
-        获取切分后的文本对象
-        :param data_path:
-        :return:
-        """
-        all_text_obj_list = []
-        with open(data_path, "r", encoding="utf-8") as data_file:
-            for item in data_file:
-                item = item.strip()
-                text_obj = json.loads(item)
-
-                # 对长文本按句号进行划分
-                split_text_obj_list = EntityUtil.split_text_obj(text_obj)
-                all_text_obj_list.extend(split_text_obj_list)
-
-        return all_text_obj_list
+    def __init__(self, model_config):
+        super().__init__(model_config)
 
     def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_predict=False):
         """
@@ -62,7 +42,7 @@ class BERTMentionDataProcessor(object):
 
             for entity_obj in entity_list:
                 # 获取实体在bert分词后的位置
-                token_begin, token_end = EntityUtil.get_entity_token_pos(entity_obj, content, self.tokenizer)
+                token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
                 # 实体所在位置超过序列最大长度则当前实体不打标
                 if token_end >= self.model_config.max_seq_len - 2:
                     continue

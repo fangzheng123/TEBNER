@@ -7,16 +7,16 @@ from torch.utils.data import DataLoader, TensorDataset, RandomSampler, Sequentia
 from util.log_util import LogUtil
 from util.entity_util import EntityUtil
 from util.file_util import FileUtil
-from model.model_config.bert_sent_config import BERTSentConfig
+from model.model_data_process.base_data_processor import BaseDataProcessor
 
-class BERTSentDataProcessor(object):
+
+class BERTSentDataProcessor(BaseDataProcessor):
     """
     加载BERT 序列标注模型的训练、验证、测试数据
     """
 
-    def __init__(self, args):
-        self.model_config = BERTSentConfig(args)
-        self.tokenizer = self.model_config.tokenizer
+    def __init__(self, model_config):
+        super().__init__(model_config)
 
     def get_seq_label(self, entity_list):
         """
@@ -48,28 +48,6 @@ class BERTSentDataProcessor(object):
 
         return seq_label
 
-    def save_token_label(self, all_seq_token_list, token_label_path):
-        """
-        将数据存储为BIOS格式
-        :param all_seq_token_list: 包含(token_list及token标注)的列表
-        :param token_label_path: 写入标注结果的文件路径
-        :return:
-        """
-        all_sent_list = []
-        for token_list, seq_label in all_seq_token_list:
-            sent_list = []
-            for i in range(min(len(token_list), len(seq_label))):
-                sent_list.append((token_list[i], seq_label[i]))
-
-            all_sent_list.append(sent_list)
-
-        with open(token_label_path, "w", encoding="utf-8") as token_label_file:
-            for sent_list in all_sent_list:
-                for token, label in sent_list:
-                    token_label_file.write(token + " " + label + "\n")
-
-                token_label_file.write("\n")
-
     def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
@@ -79,67 +57,57 @@ class BERTSentDataProcessor(object):
         :param is_test: 是否为测试集
         :return:
         """
+        all_split_text_obj_list = self.get_split_text_obj(data_path)
+
         all_data_list = []
-        all_seq_token_list = []
-
         token_len_list = []
-        all_text_obj_list = []
-        with open(data_path, "r", encoding="utf-8") as data_file:
-            for item in data_file:
-                item = item.strip()
-                text_obj = json.loads(item)
+        all_seq_token_list = []
+        for split_text_obj in all_split_text_obj_list:
+            content = split_text_obj["text"]
 
-                # 对长文本按句号进行划分
-                split_text_obj_list = EntityUtil.split_text_obj(text_obj)
-                all_text_obj_list.extend(split_text_obj_list)
+            # 加载序列标签（预测数据无标签）
+            seq_label = ["O"] * self.model_config.max_seq_len
+            if is_train or is_dev or is_test:
+                if is_train:
+                    entity_list = split_text_obj["distance_entity_list"]
+                else:
+                    entity_list = split_text_obj["entity_list"]
 
-            # 处理数据
-            for split_text_obj in all_text_obj_list:
-                content = split_text_obj["text"]
+                for entity_obj in entity_list:
+                    if entity_obj["type"] == "unknown":
+                        continue
+                    # 获取实体在bert分词后的位置
+                    token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
+                    # 实体所在位置超过序列最大长度则当前实体不打标
+                    if token_end >= self.model_config.max_seq_len - 2:
+                        continue
+                    # 加 [CLS]
+                    entity_obj["bert_token_pos"] = (token_begin + 1, token_end + 1)
 
-                # 加载序列标签（预测数据无标签）
-                seq_label = ["O"] * self.model_config.max_seq_len
-                if is_train or is_dev or is_test:
-                    if is_train:
-                        entity_list = split_text_obj["distance_entity_list"]
-                    else:
-                        entity_list = split_text_obj["entity_list"]
+                # 获取序列中每个token的标签
+                seq_label = self.get_seq_label(entity_list)
 
-                    for entity_obj in entity_list:
-                        if entity_obj["type"] == "unknown":
-                            continue
-                        # 获取实体在bert分词后的位置
-                        token_begin, token_end = EntityUtil.get_entity_token_pos(entity_obj, content, self.tokenizer)
-                        # 实体所在位置超过序列最大长度则当前实体不打标
-                        if token_end >= self.model_config.max_seq_len - 2:
-                            continue
-                        # 加 [CLS]
-                        entity_obj["bert_token_pos"] = (token_begin + 1, token_end + 1)
+            encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
+                                                      max_length=self.model_config.max_seq_len)
 
-                    # 获取序列中每个token的标签
-                    seq_label = self.get_seq_label(entity_list)
+            all_data_list.append((encoded_dict["input_ids"], encoded_dict["attention_mask"],
+                                  encoded_dict["token_type_ids"], seq_label))
 
-                encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
-                                                          max_length=self.model_config.max_seq_len)
+            # 保存bios数据格式用
+            token_list = self.tokenizer.tokenize("[CLS]" + content + "[SEP]")
+            all_seq_token_list.append((token_list, seq_label))
+            token_len_list.append(len(token_list))
 
-                all_data_list.append((encoded_dict["input_ids"], encoded_dict["attention_mask"],
-                                      encoded_dict["token_type_ids"], seq_label))
-
-                # 保存bios数据格式用
-                token_list = self.tokenizer.tokenize("[CLS]" + content + "[SEP]")
-                all_seq_token_list.append((token_list, seq_label))
-                token_len_list.append(len(token_list))
-
-            for i in range(3):
-                print(all_data_list[i][0])
-                print(all_data_list[i][1])
-                print(all_data_list[i][2])
-                print(all_data_list[i][3])
+        for i in range(3):
+            print(all_data_list[i][0])
+            print(all_data_list[i][1])
+            print(all_data_list[i][2])
+            print(all_data_list[i][3])
 
         LogUtil.logger.info("token切分后最大长度为: {}".format(max(token_len_list)))
+
         # 将数据存储为BIOS格式, 方便人为检查和查看
         token_label_path = data_path + "_bios"
-
         # if not os.path.exists(token_label_path):
         #     self.save_token_label(all_seq_token_list, token_label_path)
         self.save_token_label(all_seq_token_list, token_label_path)

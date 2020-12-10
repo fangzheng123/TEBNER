@@ -11,7 +11,7 @@ class BERTSentConfig(BaseConfig):
         super().__init__(args)
 
         # 模型存储路径
-        self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_sent_version_" + ".ckpt"
+        self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_sent_version" + ".ckpt"
 
         # 最大句子长度(padding后，短填长切)
         self.max_seq_len = self.args.max_seq_length

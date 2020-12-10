@@ -188,50 +188,14 @@ class ArgparseUtil(object):
 
         return args
 
-    def bert_autoner_argparse(self):
+    def bert_word_argparse(self):
         """
         bert autoner模型参数解析
         :return:
         """
-        self.model_argparse()
+        self.bert_sent_add_parse()
 
-        # 模型配置相关参数
-        self.parser.add_argument("--do_no_seg", action="store_true")
-        
-        self.parser.add_argument("--num_train_epochs", type=int, default=2,
-                                 help="Total number of training epochs to perform.")
-        self.parser.add_argument("--max_seq_length", default=128, type=int,
-                                 help="The maximum total input sequence length after tokenization. Sequences longer "
-                                      "than this will be truncated, sequences shorter will be padded.")
-        self.parser.add_argument("--seq_max_word_num", default=90, type=int,
-                                 help="The maximum word num in the sequence")
-        self.parser.add_argument("--bert_hidden_size", default=768, type=int,
-                                 help="The hidden size of BERT.")
-        self.parser.add_argument("--dnn_hidden_size", default=128, type=int,
-                                 help="The hidden size of DNN layer.")
-        self.parser.add_argument("--dropout", default=0.15, type=float,
-                                 help="The dropout rate")
-        self.parser.add_argument("--per_gpu_train_batch_size", default=8, type=int,
-                                 help="Batch size per GPU/CPU for training.")
-        self.parser.add_argument("--per_gpu_dev_batch_size", default=32, type=int,
-                                 help="Batch size per GPU/CPU for evaluating.")
-        self.parser.add_argument("--per_gpu_test_batch_size", default=64, type=int,
-                                 help="Batch size per GPU/CPU for testing.")
-        self.parser.add_argument("--require_improvement", type=int, default=1000, help="Require improvement")
-        self.parser.add_argument("--per_eval_batch_step", type=int, default=1000, help="Evaluate model per batch step")
-        self.parser.add_argument("--learning_rate", default=5e-5, type=float,
-                                 help="The initial learning rate for Adam.")
-        self.parser.add_argument("--do_lower_case", action="store_true",
-                                 help="Set this flag if you are using an uncased model.")
-        self.parser.add_argument("--label_names", default="finance_company,loan_product,risk_word", type=str,
-                                 required=True,
-                                 help="All label Name")
-        self.parser.add_argument("--weight_decay", default=0.01, type=float,
-                                 help="Weight decay if we apply some.")
-        self.parser.add_argument("--adam_epsilon", default=1e-8, type=float,
-                                 help="Epsilon for Adam optimizer.")
-        self.parser.add_argument("--warmup_proportion", default=0.1, type=float,
-                                 help="Proportion of training to perform linear learning rate warmup for,E.g., 0.1 = 10% of training.")
+        self.parser.add_argument("--dnn_hidden_size", default=256, type=int)
 
         args = self.parser.parse_args()
 
@@ -254,47 +218,7 @@ class ArgparseUtil(object):
         args = self.parser.parse_args()
         return args
 
-    def next_label_argparse(self):
-        """
-        下一轮模型数据标注参数解析
-        :return:
-        """
-        # 用户传入文件参数
-        self.parser.add_argument("--rank_new_entity_path", default=None, type=str, required=True)
-        self.parser.add_argument("--manual_pos_label_path", default=None, type=str, required=True)
-        self.parser.add_argument("--label_head_num", default=None, type=int, required=True)
-        self.parser.add_argument("--neg_tail_num", default=None, type=int, required=True)
-        self.parser.add_argument("--seed_entity_expand_path", default=None, type=str, required=True)
-        self.parser.add_argument("--text_format_path", default=None, type=str, required=True)
-        self.parser.add_argument("--train_next_data_path", default=None, type=str, required=True)
-        self.parser.add_argument("--dev_next_data_path", default=None, type=str, required=True)
-        self.parser.add_argument("--entity_add_extract_path", default=None, type=str, required=True)
 
-        args = self.parser.parse_args()
-        return args
-
-    def distill_argparse(self):
-        """
-        蒸馏模型参数解析
-        :return:
-        """
-        self.bert_softmax_add_parse()
-
-        # 是否对学生模型进行单独训练
-        self.parser.add_argument("--do_single", action="store_true")
-
-        self.parser.add_argument("--distill_model_dir", type=str, required=True)
-        self.parser.add_argument("--student_type", default="cnn", type=str, required=True)
-        self.parser.add_argument("--T", default=4, type=int, required=True)
-        self.parser.add_argument("--cnn_dropout", default=0.15, type=float)
-        self.parser.add_argument("--cnn_lr", default=1e-3, type=float)
-        self.parser.add_argument("--gru_lr", default=1e-3, type=float)
-        self.parser.add_argument("--cnn_num_epochs", default=3, type=int)
-        self.parser.add_argument("--gru_num_epochs", default=3, type=int)
-        self.parser.add_argument("--cnn_num_filters", default=100, type=int)
-
-        args = self.parser.parse_args()
-        return args
 
 
 

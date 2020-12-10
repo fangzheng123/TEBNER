@@ -25,6 +25,7 @@ class BERTSentRun(object):
         self.model_util = ModelUtil()
 
         self.bert_sent_config = BERTSentConfig(self.args)
+        self.bert_data_processor = BERTSentDataProcessor(self.bert_sent_config)
         self.bert_sent_model = BertSentModel(self.bert_sent_config).to(self.bert_sent_config.device)
         self.bert_sent_process = BERTSentProcess(self.bert_sent_config)
 
@@ -35,9 +36,8 @@ class BERTSentRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        data_processor = BERTSentDataProcessor(self.args)
-        train_dataloader = data_processor.load_dataset(self.args.train_data_path, is_train=True)
-        dev_dataloader = data_processor.load_dataset(self.args.dev_data_path, is_dev=True)
+        train_dataloader = self.bert_data_processor.load_dataset(self.args.train_data_path, is_train=True)
+        dev_dataloader = self.bert_data_processor.load_dataset(self.args.dev_data_path, is_dev=True)
         LogUtil.logger.info("Finished loading data ...")
 
         # 固定种子，保证每次运行结果一致
@@ -55,8 +55,7 @@ class BERTSentRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        data_processor = BERTSentDataProcessor(self.args)
-        test_dataloader = data_processor.load_dataset(self.args.test_data_path, is_test=True)
+        test_dataloader = self.bert_data_processor.load_dataset(self.args.test_data_path, is_test=True)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -73,8 +72,7 @@ class BERTSentRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        data_processor = BERTSentDataProcessor(self.args)
-        pred_dataloader = data_processor.load_dataset(self.args.pred_data_path)
+        pred_dataloader = self.bert_data_processor.load_dataset(self.args.pred_data_path)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -86,11 +84,11 @@ class BERTSentRun(object):
 
         # 实体挖掘, tag序列中包含[CLS]
         LogUtil.logger.info("Extract Entity...")
-        all_seq_entity_list = data_processor.extract_entity(all_seq_score_list, all_seq_tag_list)
+        all_seq_entity_list = self.bert_data_processor.extract_entity(all_seq_score_list, all_seq_tag_list)
 
         # 输出结果
         LogUtil.logger.info("Save to File...")
-        data_processor.output_entity(all_seq_entity_list, self.args.pred_data_path, self.args.output_path)
+        self.bert_data_processor.output_entity(all_seq_entity_list, self.args.pred_data_path, self.args.output_path)
 
         LogUtil.logger.info("End!!!")
 

@@ -26,7 +26,7 @@ class MentionClassify(object):
         self.model_util = ModelUtil()
 
         self.bert_mention_config = BERTMentionConfig(self.args)
-        self.mention_data_processor = BERTMentionDataProcessor(args)
+        self.mention_data_processor = BERTMentionDataProcessor(self.bert_mention_config)
         self.bert_mention_classify_model = BERTMentionClassifyModel(self.bert_mention_config)\
             .to(self.bert_mention_config.device)
         self.bert_mention_process = BERTMentionProcess(self.bert_mention_config)
