@@ -27,7 +27,7 @@ class BERTWordProcess(object):
         计算句子中词语连接关系损失
         :param word_connect_outputs: shape=(B,S-1,2)
         :param word_mask: shape=(B,S-1)
-        :param word_connect_labels: shape=(B)
+        :param word_connect_labels: shape=(B, S-1)
         :return:
         """
         # 计算有效loss，去除mask部分
@@ -36,6 +36,9 @@ class BERTWordProcess(object):
         active_labels = word_connect_labels.view(-1)[active_loss]
         loss_func = CrossEntropyLoss()
         loss = loss_func(active_logits, active_labels)
+
+        # loss_func = CrossEntropyLoss()
+        # loss = loss_func(word_connect_outputs.view(-1, self.model_config.connect_label_num), word_connect_labels.view(-1))
 
         return loss
 
@@ -128,18 +131,21 @@ class BERTWordProcess(object):
                     self.model_metric.update_batch_result(*metric_arg_list)
                     train_acc = self.model_metric.get_acc_result()
                     # 验证集上验证
-                    dev_loss, dev_acc = self.evaluate(model, dev_loader)
-                    if dev_acc > dev_best_result:
-                        dev_best_result = dev_acc
+                    # dev_loss, dev_acc = self.evaluate(model, dev_loader)
+                    dev_metric_dict = self.evaluate_connect_type(model, dev_loader, sent_entity_dict)
+                    if dev_metric_dict["f1"] > dev_best_result:
+                        dev_best_result = dev_metric_dict["f1"]
                         torch.save(model.state_dict(), self.model_config.model_save_path)
                         improve = "*"
                         last_improve = total_batch
                     else:
                         improve = ""
 
-                    msg = "Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%}, Dev Loss: {3:>5.2},  " \
-                          "Dev Acc: {4:>6.2%}, {5}"
-                    LogUtil.logger.info(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, improve))
+                    msg = "Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%}, Dev Precision: {3:>5.2%},  " \
+                          "Dev Recall: {4:>6.2%}, Dev F1: {5:>6.2%}, {6}"
+                    LogUtil.logger.info(msg.format(total_batch, loss.item(), train_acc,
+                                                   dev_metric_dict["precision"], dev_metric_dict["recall"],
+                                                   dev_metric_dict["f1"], improve))
                     model.train()
                 total_batch += 1
                 if total_batch - last_improve > self.model_config.require_improvement:
@@ -207,7 +213,6 @@ class BERTWordProcess(object):
         :return:
         """
         model.eval()
-        loss_total = 0
 
         self.model_metric.reset()
         with torch.no_grad():
@@ -215,18 +220,52 @@ class BERTWordProcess(object):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
                 input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
-                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
+                _entity_begins, _entity_ends, _entity_type_labels, sent_indexs = batch_data
+                sent_indexs = sent_indexs.cpu().numpy().tolist()
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
+                if torch.cuda.device_count() > 1:
+                    # shape=(B,W-1,2)
+                    token_connect_output = model.module.token_connecting(sequence_output)
+                else:
+                    token_connect_output = model.token_connecting(sequence_output)
 
+                # torch.max返回一个元组（最大值列表, 最大值对应的index列表）
+                connect_scores, connect_outputs = torch.max(token_connect_output.data, axis=2)
 
+                # 根据连接结果获取实体边界
+                entity_batch_index_list, entity_sent_index_dict, seq_connect_score_dict, \
+                entity_begin_list, entity_end_list = self.infer_entity_boundary(connect_scores.cpu().numpy().tolist(),
+                                               connect_outputs.cpu().numpy().tolist(), sent_indexs)
 
+                # 构建实体分类数据
+                entity_begins, entity_ends, all_outputs = self.build_entity_typing_data(entity_batch_index_list,
+                                                                                        entity_begin_list,
+                                                                                        entity_end_list,
+                                                                                        sequence_output.cpu().numpy().tolist())
+                if len(entity_begins) == 0:
+                    continue
 
-    def test(self, model, test_loader):
+                if torch.cuda.device_count() > 1:
+                    # shape=(B,L)
+                    entity_type_output = model.module.entity_typing(all_outputs, entity_begins, entity_ends)
+                else:
+                    entity_type_output = model.entity_typing(all_outputs, entity_begins, entity_ends)
+
+                entity_type_scores, entity_types = torch.max(entity_type_output.data, axis=1)
+                self.model_metric.update_eval_result(entity_types.cpu().numpy().tolist(),
+                                                     entity_type_scores.cpu().numpy().tolist(),
+                                                     entity_begin_list, entity_end_list, entity_sent_index_dict)
+
+        metric_result_dict = self.model_metric.get_metric_result(sent_entity_dict)
+        return metric_result_dict
+
+    def test(self, model, test_loader, sent_entity_dict):
         """
         测试模型
         :param model:
         :param test_loader:
+        :param sent_entity_dict:
         :return:
         """
         # 加载模型
@@ -236,40 +275,42 @@ class BERTWordProcess(object):
         if torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
 
-        test_loss, test_acc = self.evaluate(model, test_loader)
-        LogUtil.logger.info("Test Loss: {0}, Test Acc: {1}".format(test_loss, test_acc))
+        test_metric_dict = self.evaluate_connect_type(model, test_loader, sent_entity_dict)
+        LogUtil.logger.info("Test Precision: {0}, Test Recall: {1}, Test F1: {2}".format(
+            test_metric_dict["precision"], test_metric_dict["recall"], test_metric_dict["f1"]))
 
-    def infer_entity_boundary(self, connect_scores, connect_outputs):
+    def infer_entity_boundary(self, connect_scores, connect_outputs, sent_indexs):
         """
         根据连接关系推测实体边界
         :param connect_scores: 连接关系分数, shape=(B,S-1)
         :param connect_outputs: 连接关系, shape=(B,S-1)
+        :param sent_indexs: 句子编号, shape=(B)
         :return:
         """
-        # 包含实体的序列号
-        seq_index_list = []
-        # 实体对应的序列号
-        seq_entity_index_dict = {}
+        # 实体在当前batch中句子序号
+        entity_batch_index_list = []
+        # 实体在所有数据中对应的序列号
+        entity_sent_index_dict = {}
         # 实体对应的连接分数
         seq_entity_connect_score_dict = {}
         entity_begin_list = []
         entity_end_list = []
-        for index in range(len(connect_outputs)):
-            connect_list = connect_outputs[index]
-            score_list = connect_scores[index]
+        for batch_sent_index in range(len(connect_outputs)):
+            sent_index = sent_indexs[batch_sent_index]
+            connect_list = connect_outputs[batch_sent_index]
+            score_list = connect_scores[batch_sent_index]
             connect_index_list = [i for i, connect in enumerate(connect_list) if connect == 1]
-
             entity_boundary_list = EntityUtil.get_entity_boundary_no_seg(connect_index_list, self.model_config.max_seq_len)
             if len(entity_boundary_list) > 0:
                 for entity_begin, entity_end in entity_boundary_list:
                     entity_begin_list.append(entity_begin)
                     entity_end_list.append(entity_end)
-                    seq_index_list.append(index)
-                    seq_entity_index_dict[len(entity_begin_list)-1] = index
+                    entity_batch_index_list.append(batch_sent_index)
+                    entity_sent_index_dict[len(entity_begin_list)-1] = sent_index
                     seq_entity_connect_score_dict[len(entity_begin_list)-1] = sum(score_list[entity_begin:entity_end+1]) / \
                                                                       max(1, entity_end+1-entity_begin)
 
-        return seq_index_list, seq_entity_index_dict, seq_entity_connect_score_dict, entity_begin_list, entity_end_list
+        return entity_batch_index_list, entity_sent_index_dict, seq_entity_connect_score_dict, entity_begin_list, entity_end_list
 
     def build_entity_typing_data(self, *args):
         """
@@ -277,8 +318,8 @@ class BERTWordProcess(object):
         :param args:
         :return:
         """
-        seq_index_list, entity_begin_list, entity_end_list, outputs = args
-        all_outputs = [outputs[index] for index in seq_index_list]
+        entity_batch_index_list, entity_begin_list, entity_end_list, outputs = args
+        all_outputs = [outputs[index] for index in entity_batch_index_list]
 
         entity_begins = torch.LongTensor(entity_begin_list).to(self.model_config.device)
         entity_ends = torch.LongTensor(entity_end_list).to(self.model_config.device)

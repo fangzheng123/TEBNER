@@ -27,7 +27,7 @@ class BERTWordProcessor(BaseDataProcessor):
         seq_type_label = ["None"] * self.model_config.max_seq_len
 
         # token连接关系mask列表
-        token_connect_mask = encoded_dict["attention_mask"][:-1]
+        token_connect_mask = [1] * (self.model_config.max_seq_len - 1)
 
         for entity_obj in entity_list:
             # 实体所在位置超过序列最大长度则当前实体不打标
@@ -39,7 +39,7 @@ class BERTWordProcessor(BaseDataProcessor):
 
             # 当前token与下一个token的连接关系打标
             if entity_obj["type"] == "unknown":
-                seq_connect_label[entity_token_begin: entity_token_end] = ["S"] * (entity_token_end - entity_token_begin)
+                seq_connect_label[entity_token_begin: entity_token_end] = ["T"] * (entity_token_end - entity_token_begin)
                 token_connect_mask[entity_token_begin: entity_token_end] = [0] * (entity_token_end - entity_token_begin)
             else:
                 seq_connect_label[entity_token_begin: entity_token_end] = ["T"] * (entity_token_end - entity_token_begin)
@@ -120,9 +120,10 @@ class BERTWordProcessor(BaseDataProcessor):
                     all_token_connect_labels.append([self.model_config.connect_label_id_dict[ele] for ele
                                                       in seq_connect_label])
                     all_sent_index_list.append(sent_index)
+                    # 仅用于占位
                     all_entity_begins.append(0)
                     all_entity_ends.append(0)
-                    all_entity_type_labels.append(self.model_config.type_label_id_dict["None"])
+                    all_entity_type_labels.append(0)
             # 非打标数据
             else:
                 all_token_encode_list.append(encoded_dict)
@@ -131,7 +132,7 @@ class BERTWordProcessor(BaseDataProcessor):
                                                 * (self.model_config.max_seq_len - 1))
                 all_entity_begins.append(0)
                 all_entity_ends.append(0)
-                all_entity_type_labels.append(self.model_config.type_label_id_dict["None"])
+                all_entity_type_labels.append(0)
                 all_sent_index_list.append(sent_index)
                 seq_connect_label = ["B"] * (self.model_config.max_seq_len - 1)
                 seq_type_label = ["None"] * self.model_config.max_seq_len

@@ -65,7 +65,7 @@ class BERTWordRun(object):
 
         # 测试模型
         LogUtil.logger.info("Testing model...")
-        self.bert_word_process.test(self.bert_word_model, test_dataloader)
+        self.bert_word_process.test(self.bert_word_model, test_dataloader, sent_entity_dict)
 
         LogUtil.logger.info("Finished Testing model!!!")
         

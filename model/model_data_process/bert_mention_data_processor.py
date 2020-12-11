@@ -109,7 +109,7 @@ class BERTMentionDataProcessor(BaseDataProcessor):
 
             for entity_obj in entity_list:
                 # 获取实体在bert分词后的位置
-                token_begin, token_end = EntityUtil.get_entity_token_pos(entity_obj, content, self.tokenizer)
+                token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
                 # 实体所在位置超过序列最大长度则当前实体不打标
                 if token_end >= self.model_config.max_seq_len - 2:
                     continue

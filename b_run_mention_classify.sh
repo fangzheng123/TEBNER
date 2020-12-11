@@ -1,6 +1,6 @@
 
 # Mention分类模型
-CUDA_VISIBLE_DEVICES="1"
+CUDA_VISIBLE_DEVICES="0"
 
 # 当前任务领域
 TASK_NAME="bc5cdr"
@@ -48,7 +48,7 @@ PREDICT_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
 LOG_FILE=mention_classify_log
 
 nohup python -u run_model/run_mention_classify.py \
-  --do_predict \
+  --do_eval \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
   --pre_trained_model_path=$PRE_TRAINED_MODEL_DIR \

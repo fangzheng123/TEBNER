@@ -23,7 +23,8 @@ class BERTWordConfig(BaseConfig):
         self.dropout = self.args.dropout
 
         # 连接关系标签列表, Tie or Break
-        self.connect_label_list = ["B", "T", "S"]
+        # self.connect_label_list = ["B", "T", "S"]
+        self.connect_label_list = ["B", "T"]
         # 类别标签列表
         self.type_label_list = self.get_type_label_list()
         # 连接关系标签id字典
@@ -42,5 +43,5 @@ class BERTWordConfig(BaseConfig):
         """
         all_names = self.args.label_names
         type_label_list = all_names.split(",")
-        type_label_list.append("None")
+        # type_label_list.append("None")
         return type_label_list

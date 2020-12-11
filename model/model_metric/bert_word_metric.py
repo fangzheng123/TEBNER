@@ -10,6 +10,10 @@ class BERTWordMetric(BaseMetric):
     def __init__(self):
         super().__init__()
 
+    def reset(self):
+        super().reset()
+        self.pred_sent_entity_dict = {}
+
     def get_pred_entity_pos(self, connect_index_list):
         """
         获取实体边界
@@ -70,6 +74,24 @@ class BERTWordMetric(BaseMetric):
             if pred_right_flag:
                 self.pred_right_entity_list.append((pred_type, entity_begin, entity_end))
 
+    def update_eval_result(self, entity_types, entity_type_scores, entity_begins, entity_ends, entity_sent_index_dict):
+        """
+        更新预测结果
+        :param entity_types:
+        :param entity_type_scores:
+        :param entity_begins:
+        :param entity_ends:
+        :param entity_sent_index_dict:
+        :return:
+        """
+        for index in range(len(entity_begins)):
+            sent_index = entity_sent_index_dict[index]
+            entity_begin = entity_begins[index]
+            entity_end = entity_ends[index]
+            entity_type = entity_types[index]
+            entity_type_score = entity_type_scores[index]
+            self.pred_sent_entity_dict.setdefault(sent_index, []).append((entity_begin, entity_end, entity_type, entity_type_score))
+
     def get_acc_result(self):
         """
         计算预测正确率
@@ -78,47 +100,25 @@ class BERTWordMetric(BaseMetric):
         acc = len(self.pred_right_entity_list) / len(self.label_entity_list)
         return acc
 
-    def get_metric_result(self, all_connect_pred_id_list, all_type_pred_id_list,
-                          all_entity_label_list, all_sent_index_list):
+    def get_metric_result(self, label_sent_entity_dict):
         """
         计算测试准确率，召回率，F1
-        :param all_connect_pred_id_list:
-        :param all_type_pred_id_list:
-        :param all_entity_label_list:
-        :param all_sent_index_list:
+        :param label_sent_entity_dict:
         :return:
         """
-        all_sent_connect_dict = {}
-        all_sent_type_dict = {}
-        all_sent_label_dict = {}
-
-        for connect_pred_ids, type_pred_id, entity_label, sent_index in \
-                zip(all_connect_pred_id_list, all_type_pred_id_list, all_entity_label_list, all_sent_index_list):
-            all_sent_connect_dict[sent_index] = connect_pred_ids
-            all_sent_type_dict.setdefault(sent_index, []).append(type_pred_id)
-            all_sent_label_dict.setdefault(sent_index, []).append(entity_label)
-
         pred_num = 0
         pred_right_num = 0
-        all_label_num = sum([len(_) for _ in all_sent_label_dict.values()])
-        for sent_index, connect_pred_ids in all_sent_connect_dict.items():
-            pred_type_list = all_sent_type_dict.get(sent_index, [])
-            label_entity_list = all_sent_label_dict.get(sent_index, [])
-            label_entity_begin_set = set([ele[0] for ele in label_entity_list])
-            label_entity_end_set = set([ele[1] for ele in label_entity_list])
+        label_entity_num = 0
 
-            connect_index_list = [i for i, val in enumerate(connect_pred_ids) if val == 1]
-            pred_entity_list = self.get_pred_entity_pos(connect_index_list)
+        for sent_index, pred_entity_list in self.pred_sent_entity_dict.items():
+            label_entity_list = label_sent_entity_dict.get(sent_index, [])
+
             pred_num += len(pred_entity_list)
-            for entity_begin, entity_end in pred_entity_list:
-                if entity_begin in label_entity_begin_set and entity_end in label_entity_end_set:
-                    pred_right_num += 1
+            label_entity_num += len(label_entity_list)
+            pred_right_num += len([pred_entity for pred_entity in pred_entity_list if
+                                   (pred_entity[0], pred_entity[1], pred_entity[2]) in label_entity_list])
 
-            for pred_type, label_entity in zip(pred_type_list, label_entity_list):
-                if pred_type != label_entity[-1] and pred_num == len(label_entity_list):
-                    pred_right_num -= 1
-
-        precision, recall, f1 = self.compute_metric(all_label_num, pred_num, pred_right_num)
+        precision, recall, f1 = self.compute_metric(label_entity_num, pred_num, pred_right_num)
         metric_result_dict = {"precision": precision, "recall": recall, "f1": f1}
         return metric_result_dict
 
