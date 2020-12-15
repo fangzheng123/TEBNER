@@ -28,13 +28,13 @@ mkdir -p $FINE_TUNING_MODEL_DIR
 
 ####################用户需提供的数据#####################
 # 模型训练、验证、测试文件
-TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/demo_train
-DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/demo_train
-TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
+TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
+DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
+TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
 
 ###################训练BERT Word模型#####################
 # 日志
-LOG_FILE=word_log_2
+LOG_FILE=word_log_3
 
 nohup python -u run_model/run_bert_word.py \
   --do_train \
@@ -49,7 +49,7 @@ nohup python -u run_model/run_bert_word.py \
   --label_names=$LABELS \
   --require_improvement=1500 \
   --max_seq_length=256 \
-  --per_eval_batch_step=10 \
+  --per_eval_batch_step=40 \
   --per_gpu_train_batch_size=86 \
   --per_gpu_dev_batch_size=170 \
   --per_gpu_test_batch_size=200 \

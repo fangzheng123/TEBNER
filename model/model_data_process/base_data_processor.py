@@ -100,11 +100,15 @@ class BaseDataProcessor(object):
         :return:
         """
         all_sent_list = []
-        for token_list, seq_connect_label, seq_type_label in all_seq_token_list:
+        for ele_tuple in all_seq_token_list:
             sent_list = []
-            for i in range(min(len(token_list), len(seq_connect_label))):
-                sent_list.append((token_list[i], seq_connect_label[i], seq_type_label[i]))
-
+            if len(ele_tuple) == 2:
+                token_list, seq_type_label = ele_tuple
+                sent_list = [(token, token_label) for token, token_label in zip(token_list, seq_type_label)]
+            elif len(ele_tuple) == 3:
+                token_list, seq_connect_label, seq_type_label = ele_tuple
+                for i in range(min(len(token_list), len(seq_connect_label))):
+                    sent_list.append((token_list[i], seq_connect_label[i], seq_type_label[i]))
             all_sent_list.append(sent_list)
 
         with open(token_label_path, "w", encoding="utf-8") as token_label_file:

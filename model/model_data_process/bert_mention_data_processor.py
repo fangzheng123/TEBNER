@@ -3,7 +3,6 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset, RandomSampler, SequentialSampler
 
-from util.entity_util import EntityUtil
 from model.model_data_process.base_data_processor import BaseDataProcessor
 
 class BERTMentionDataProcessor(BaseDataProcessor):
@@ -67,7 +66,6 @@ class BERTMentionDataProcessor(BaseDataProcessor):
                                   for (mention_beg, mention_end), mention_label in
                                   zip(mention_loc_list, mention_label_list)])
 
-
         all_input_ids = torch.LongTensor([_[0] for _ in all_data_list])
         all_input_mask = torch.LongTensor([_[1] for _ in all_data_list])
         all_type_ids = torch.LongTensor([_[2] for _ in all_data_list])
@@ -89,6 +87,152 @@ class BERTMentionDataProcessor(BaseDataProcessor):
 
         dataloader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=batch_size)
         return dataloader
+
+    def load_data_from_distance(self, data_path):
+        """
+        根据远程标注结果加载分类数据
+        :param data_path:
+        :return:
+        """
+        all_text_obj_list = self.get_split_text_obj(data_path)
+
+        # 处理数据
+        all_data_list = []
+        all_entity_sent_index_list = []
+        all_sent_label_dict = {}
+        for sent_index, split_text_obj in enumerate(all_text_obj_list):
+            content = split_text_obj["text"]
+            # mention位置
+            mention_loc_list = []
+
+            label_entity_list = split_text_obj["entity_list"]
+            distance_entity_list = split_text_obj["distance_entity_list"]
+
+            # 获取远程标注的实体位置
+            for distance_entity_obj in distance_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(distance_entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                mention_loc_list.append((token_begin + 1, token_end + 1))
+                all_entity_sent_index_list.append(sent_index)
+
+            # 获取真实标注的实体位置及类型
+            for label_entity_obj in label_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(label_entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                all_sent_label_dict.setdefault(sent_index, []).append((
+                    token_begin + 1, token_end + 1, self.model_config.label_id_dict[label_entity_obj["type"]]))
+
+            encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
+                                                      max_length=self.model_config.max_seq_len)
+
+            all_data_list.extend([(encoded_dict["input_ids"], encoded_dict["attention_mask"],
+                                   encoded_dict["token_type_ids"], mention_beg, mention_end)
+                                  for (mention_beg, mention_end) in mention_loc_list])
+
+        all_input_ids = torch.LongTensor([_[0] for _ in all_data_list])
+        all_input_mask = torch.LongTensor([_[1] for _ in all_data_list])
+        all_type_ids = torch.LongTensor([_[2] for _ in all_data_list])
+        all_mention_begs = torch.LongTensor([_[3] for _ in all_data_list])
+        all_mention_ends = torch.LongTensor([_[4] for _ in all_data_list])
+        all_sent_indexs = torch.LongTensor(all_entity_sent_index_list)
+        tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_type_ids,
+                                       all_mention_begs, all_mention_ends, all_sent_indexs)
+
+        batch_size = self.model_config.test_batch_size
+        data_sampler = SequentialSampler(tensor_dataset)
+
+        dataloader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=batch_size)
+
+        return dataloader, all_sent_label_dict
+
+    def load_data_from_sent_model(self, data_path, all_sent_entity_dict):
+        """
+        从边界识别结果中构造数据
+        :param data_path:
+        :param all_sent_entity_dict:
+        :return:
+        """
+        all_text_obj_list = self.get_split_text_obj(data_path)
+
+        # 处理数据
+        all_data_list = []
+        all_entity_sent_index_list = []
+        all_sent_label_dict = {}
+        for sent_index, split_text_obj in enumerate(all_text_obj_list):
+            content = split_text_obj["text"]
+
+            pred_entity_list = all_sent_entity_dict.get(sent_index, [])
+            label_entity_list = split_text_obj["entity_list"]
+
+            # mention位置
+            mention_loc_list = []
+
+            # 获取远程监督位置
+            distance_token_begin_dict = {}
+            distance_entity_list = split_text_obj["distance_entity_list"]
+            for dis_entity_obj in distance_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(dis_entity_obj, content)
+                # 加[CLS]
+                distance_token_begin_dict[token_begin+1] = (token_begin+1, token_end+1)
+                mention_loc_list.append((token_begin+1, token_end+1))
+                all_entity_sent_index_list.append(sent_index)
+
+            # 获取模型预测的实体位置
+            for pred_entity_tuple in pred_entity_list:
+                _, token_begin, token_end, token_score = pred_entity_tuple
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 当起始位置相同时，以远程监督位置为准
+                if token_begin not in distance_token_begin_dict:
+                    # 边界模型预测结果时偏移已经计算[CLS],此处无需加1
+                    mention_loc_list.append((token_begin, token_end))
+                    all_entity_sent_index_list.append(sent_index)
+
+                # mention_loc_list.append((token_begin, token_end))
+                # all_entity_sent_index_list.append(sent_index)
+
+            # 获取真实标注的实体位置及类型
+            for label_entity_obj in label_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(label_entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                all_sent_label_dict.setdefault(sent_index, []).append((
+                    token_begin + 1, token_end + 1, self.model_config.label_id_dict[label_entity_obj["type"]]))
+
+            encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
+                                                      max_length=self.model_config.max_seq_len)
+
+            all_data_list.extend([(encoded_dict["input_ids"], encoded_dict["attention_mask"],
+                                   encoded_dict["token_type_ids"], mention_beg, mention_end)
+                                  for (mention_beg, mention_end) in mention_loc_list])
+
+        all_input_ids = torch.LongTensor([_[0] for _ in all_data_list])
+        all_input_mask = torch.LongTensor([_[1] for _ in all_data_list])
+        all_type_ids = torch.LongTensor([_[2] for _ in all_data_list])
+        all_mention_begs = torch.LongTensor([_[3] for _ in all_data_list])
+        all_mention_ends = torch.LongTensor([_[4] for _ in all_data_list])
+        all_sent_indexs = torch.LongTensor(all_entity_sent_index_list)
+        tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_type_ids,
+                                       all_mention_begs, all_mention_ends, all_sent_indexs)
+
+        batch_size = self.model_config.test_batch_size
+        data_sampler = SequentialSampler(tensor_dataset)
+
+        dataloader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=batch_size)
+
+        return dataloader, all_sent_label_dict
 
     def output_mention_type(self, data_path, all_mention_type_list, all_mention_score_list):
         """

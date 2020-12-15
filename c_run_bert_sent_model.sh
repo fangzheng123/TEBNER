@@ -1,6 +1,6 @@
 
 # BERT序列标注模型
-CUDA_VISIBLE_DEVICES="1"
+CUDA_VISIBLE_DEVICES="0"
 
 # 当前任务领域
 TASK_NAME="bc5cdr"
@@ -33,10 +33,10 @@ DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 
 # 日志
-LOG_FILE=train_bert_sent_log_2
+LOG_FILE=test_bert_sent_log
 
 nohup python -u run_model/run_bert_sent.py \
-  --do_train \
+  --do_test \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
   --pre_trained_model_path=$PRE_TRAINED_MODEL_DIR \

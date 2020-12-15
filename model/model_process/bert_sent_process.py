@@ -30,15 +30,6 @@ class BERTSentProcess(object):
         """
         # 获取loss函数
         loss_func = CrossEntropyLoss()
-
-        # 计算有效loss，去除mask部分
-        # attention_mask = batch_data[1]
-        # label = batch_data[3]
-        # active_loss = attention_mask.view(-1) == 1
-        # active_logits = output.view(-1, self.model_config.label_num)[active_loss]
-        # active_labels = label.view(-1)[active_loss]
-        # loss = loss_func(active_logits, active_labels)
-
         loss = loss_func(output.view(-1, self.model_config.label_num), batch_data[3].view(-1))
 
         return loss
@@ -83,7 +74,7 @@ class BERTSentProcess(object):
             for i, batch_data in enumerate(train_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, type_ids, label_ids = batch_data
+                input_ids, input_mask, type_ids, label_ids, sent_indexs = batch_data
                 outputs = model((input_ids, input_mask, type_ids))
                 model.zero_grad()
                 loss = self.cal_loss(outputs, batch_data)
@@ -141,7 +132,7 @@ class BERTSentProcess(object):
             for i, batch_data in enumerate(data_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, type_ids, label_ids = batch_data
+                input_ids, input_mask, type_ids, label_ids, sent_indexs = batch_data
                 outputs = model((input_ids, input_mask, type_ids))
                 loss = self.cal_loss(outputs, batch_data)
                 loss_total += loss
@@ -188,25 +179,26 @@ class BERTSentProcess(object):
 
         all_seq_score_list = []
         all_seq_tag_list = []
+        all_seq_sent_index_list = []
         with torch.no_grad():
             LogUtil.logger.info("Batch Num: {0}".format(len(data_loader)))
             for i, batch_data in enumerate(data_loader):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
-                input_ids, input_mask, type_ids, label_ids = batch_data
+                input_ids, input_mask, type_ids, label_ids, sent_indexs = batch_data
                 outputs = model((input_ids, input_mask, type_ids))
                 # torch.max返回一个元组（最大值列表, 最大值对应的index列表）
                 scores, preds = torch.max(outputs.data, axis=2)
                 scores = scores.cpu().numpy().tolist()
                 preds = preds.cpu().numpy().tolist()
+                all_seq_sent_index_list.extend(sent_indexs.cpu().numpy().tolist())
                 all_seq_score_list.extend(scores)
                 for seq in preds:
-                    tag_list = [self.model_config.id_label_dict[ele] for ele in seq]
-                    all_seq_tag_list.append(tag_list)
+                    all_seq_tag_list.append([self.model_config.id_label_dict[ele] for ele in seq])
                 
                 LogUtil.logger.info("Batch Num: {0}".format(i))
 
         LogUtil.logger.info("Finished Predicting!!!")
 
         # shape=(B,S)
-        return all_seq_score_list, all_seq_tag_list
+        return all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list

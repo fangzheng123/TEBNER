@@ -42,12 +42,17 @@ class BERTSentDataProcessor(BaseDataProcessor):
             #     for inter_offset in inter_word_offset_list:
             #         seq_label[inter_offset] = "I-" + entity_obj["type"]
 
-            seq_label[token_begin] = "B-" + entity_obj["type"]
-            seq_label[token_begin + 1:token_end + 1] = ['I-' + entity_obj["type"]] * (token_end - token_begin)
+            # 仅训练连接关系
+            if self.model_config.is_only_connect:
+                seq_label[token_begin] = "B-" + "None"
+                seq_label[token_begin + 1:token_end + 1] = ['I-' + "None"] * (token_end - token_begin)
+            else:
+                seq_label[token_begin] = "B-" + entity_obj["type"]
+                seq_label[token_begin + 1:token_end + 1] = ['I-' + entity_obj["type"]] * (token_end - token_begin)
 
         return seq_label
 
-    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False):
+    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_pred=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
         :param data_path:
@@ -61,13 +66,13 @@ class BERTSentDataProcessor(BaseDataProcessor):
         all_data_list = []
         token_len_list = []
         all_seq_token_list = []
-        for split_text_obj in all_split_text_obj_list:
+        for sent_index, split_text_obj in enumerate(all_split_text_obj_list):
             content = split_text_obj["text"]
 
             # 加载序列标签（预测数据无标签）
             seq_label = ["O"] * self.model_config.max_seq_len
             if is_train or is_dev or is_test:
-                if is_train:
+                if is_train or is_pred:
                     entity_list = split_text_obj["distance_entity_list"]
                 else:
                     entity_list = split_text_obj["entity_list"]
@@ -90,7 +95,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
                                                       max_length=self.model_config.max_seq_len)
 
             all_data_list.append((encoded_dict["input_ids"], encoded_dict["attention_mask"],
-                                  encoded_dict["token_type_ids"], seq_label))
+                                  encoded_dict["token_type_ids"], seq_label, sent_index))
 
             # 保存bios数据格式用
             token_list = self.tokenizer.tokenize("[CLS]" + content + "[SEP]")
@@ -116,7 +121,8 @@ class BERTSentDataProcessor(BaseDataProcessor):
         all_type_ids = torch.LongTensor([_[2] for _ in all_data_list])
         all_label_ids = torch.LongTensor([[self.model_config.label_id_dict[label]
                                            for label in _[3]] for _ in all_data_list])
-        tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_type_ids, all_label_ids)
+        all_sent_indexs = torch.LongTensor([_[4] for _ in all_data_list])
+        tensor_dataset = TensorDataset(all_input_ids, all_input_mask, all_type_ids, all_label_ids, all_sent_indexs)
 
         if is_train:
             batch_size = self.model_config.train_batch_size
@@ -131,15 +137,16 @@ class BERTSentDataProcessor(BaseDataProcessor):
         dataloader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=batch_size)
         return dataloader
 
-    def extract_entity(self, all_seq_score_list, all_seq_tag_list):
+    def extract_entity(self, all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list):
         """
         从序列中挖掘实体
         :param all_seq_score_list: 所有序列中每个token类别的预测分数
         :param all_seq_tag_list: 所有序列中每个token预测类别
+        :param all_seq_sent_index_list: 每个序列所对应sent_index
         :return:
         """
-        all_entity_list = []
-        for seq_score_list, seq_tag_list in zip(all_seq_score_list, all_seq_tag_list):
+        all_sent_entity_dict = {}
+        for seq_score_list, seq_tag_list, sent_index in zip(all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list):
             pre_entities = EntityUtil.get_seq_entity(seq_tag_list)
             for entity in pre_entities:
                 token_num = entity[2] - entity[1] + 1
@@ -148,9 +155,9 @@ class BERTSentDataProcessor(BaseDataProcessor):
                 entity_scores = round(sum(seq_score_list[entity[1]:entity[2] + 1]) / token_num, 2)
                 entity.append(entity_scores)
 
-            all_entity_list.append(pre_entities)
+            all_sent_entity_dict.setdefault(sent_index, []).extend(pre_entities)
 
-        return all_entity_list
+        return all_sent_entity_dict
 
     def output_entity(self, all_seq_entity_list, data_path, output_path):
         """
@@ -175,8 +182,8 @@ class BERTSentDataProcessor(BaseDataProcessor):
                         continue
                     entity_obj["token_score"] = entity_score
                     entity_obj["type"] = entity_type
-                    entity_obj["offset"] = len("".join(seq_token[1:entity_begin]).replace("##", ""))
-                    entity_obj["length"] = len(entity_obj["form"])
+                    entity_obj["token_begin"] = entity_begin
+                    entity_obj["token_end"] = entity_end
                     entity_obj_list.append(entity_obj)
 
                 text_obj["entity_list"] = entity_obj_list

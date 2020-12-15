@@ -30,15 +30,15 @@ class BERTWordProcess(object):
         :param word_connect_labels: shape=(B, S-1)
         :return:
         """
-        # 计算有效loss，去除mask部分
-        active_loss = word_mask.view(-1) == 1
-        active_logits = word_connect_outputs.view(-1, self.model_config.connect_label_num)[active_loss]
-        active_labels = word_connect_labels.view(-1)[active_loss]
-        loss_func = CrossEntropyLoss()
-        loss = loss_func(active_logits, active_labels)
-
+        # # 计算有效loss，去除mask部分
+        # active_loss = word_mask.view(-1) == 1
+        # active_logits = word_connect_outputs.view(-1, self.model_config.connect_label_num)[active_loss]
+        # active_labels = word_connect_labels.view(-1)[active_loss]
         # loss_func = CrossEntropyLoss()
-        # loss = loss_func(word_connect_outputs.view(-1, self.model_config.connect_label_num), word_connect_labels.view(-1))
+        # loss = loss_func(active_logits, active_labels)
+
+        loss_func = CrossEntropyLoss()
+        loss = loss_func(word_connect_outputs.view(-1, self.model_config.connect_label_num), word_connect_labels.view(-1))
 
         return loss
 

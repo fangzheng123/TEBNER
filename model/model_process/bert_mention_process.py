@@ -11,6 +11,7 @@ from transformers.optimization import get_linear_schedule_with_warmup
 
 from util.model_util import ModelUtil
 from util.log_util import LogUtil
+from model.model_metric.bert_mention_metric import BERTMentionMetric
 
 class BERTMentionProcess(object):
     """
@@ -20,6 +21,7 @@ class BERTMentionProcess(object):
         self.model_config = model_config
         self.args = self.model_config.args
         self.model_util = ModelUtil()
+        self.model_metric = BERTMentionMetric()
 
     def train(self, model, train_loader, dev_loader):
         """
@@ -179,6 +181,39 @@ class BERTMentionProcess(object):
         all_pred_label_list = [self.model_config.id_label_dict[pred_id] for pred_id in all_predict_id_list]
 
         return all_pred_label_list, all_score_list
+
+    def test_by_connect_model(self, model, test_loader, pred_sent_entity_dict, all_sent_label_dict):
+        """
+        测试预测结果
+        :param model:
+        :param test_loader:
+        :param all_sent_label_dict:
+        :return:
+        """
+        # 加载模型
+        self.model_util.load_model(model, self.model_config.model_save_path, self.model_config.device)
+
+        model.eval()
+        if torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        with torch.no_grad():
+            for i, batch_data in enumerate(test_loader):
+                # 将数据加载到gpu
+                batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
+                input_ids, input_mask, type_ids, mention_begins, mention_ends, sent_indexs = batch_data
+                outputs = model((input_ids, input_mask, type_ids, mention_begins, mention_ends))
+                scores, pred_ids = torch.max(outputs.data, axis=1)
+                self.model_metric.update_eval_result(pred_ids.cpu().numpy().tolist(),
+                                                     scores.cpu().numpy().tolist(),
+                                                     mention_begins.cpu().numpy().tolist(),
+                                                     mention_ends.cpu().numpy().tolist(),
+                                                     sent_indexs.cpu().numpy().tolist(),
+                                                     pred_sent_entity_dict, self.model_config)
+        metric_result_dict = self.model_metric.get_metric_result(all_sent_label_dict)
+        LogUtil.logger.info(metric_result_dict)
+
+        return metric_result_dict
 
 
 

@@ -124,9 +124,11 @@ class ArgparseUtil(object):
         self.parser.add_argument("--pred_result_path", default=None, type=str)
         self.parser.add_argument("--output_path", default=None, type=str)
 
-
     def bert_sent_add_parse(self):
         self.bert_model_argparse()
+
+        # 是否仅训练实体边界
+        self.parser.add_argument("--do_only_connect", action="store_true")
 
         # 模型配置相关参数
         self.parser.add_argument("--num_train_epochs", type=int, default=2,
@@ -190,7 +192,7 @@ class ArgparseUtil(object):
 
     def bert_word_argparse(self):
         """
-        bert autoner模型参数解析
+        bert word模型参数解析
         :return:
         """
         self.bert_sent_add_parse()
@@ -201,19 +203,13 @@ class ArgparseUtil(object):
 
         return args
 
-    def entity_extract_argparse(self):
+    def bert_sent_pipline_argparse(self):
         """
-        新实体挖掘参数解析
+        bert sent pipline模型参数解析
         :return:
         """
-        # PhraseMining模型配置参数
-        self.phrase_argparse()
-
-        # 用户传入文件参数
-        self.parser.add_argument("--seed_entity_expand_path", default=None, type=str, required=True)
-        self.parser.add_argument("--bert_softmax_pred_path", default=None, type=str, required=True)
-        self.parser.add_argument("--bert_autoner_pred_path", default=None, type=str, required=True)
-        self.parser.add_argument("--entity_multi_score_rank_path", default=None, type=str, required=True)
+        self.bert_sent_add_parse()
+        self.parser.add_argument("--dnn_hidden_size", default=256, type=int)
 
         args = self.parser.parse_args()
         return args
