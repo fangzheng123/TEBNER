@@ -20,7 +20,7 @@ MODEL_TYPE="biobert-base-cased-v1.1"
 # 预训练模型路径
 PRE_TRAINED_MODEL_DIR=$ROOT_DIR/pre_trained_model/${MODEL_TYPE}/
 # 微调模型存储路径
-FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model
+FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model/dis_supervised_model
 
 # 创建相关目录
 echo ${green}=== Mkdir ===${reset}
@@ -28,13 +28,13 @@ mkdir -p $FINE_TUNING_MODEL_DIR
 
 ####################用户需提供的数据#####################
 # 模型训练、验证、测试文件
-TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
-DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
-TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
+TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_train_dev_distance_data
+DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
+TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 
 ###################训练BERT Word模型#####################
 # 日志
-LOG_FILE=word_log_3
+LOG_FILE=dis_supervised_train_bert_word_log
 
 nohup python -u run_model/run_bert_word.py \
   --do_train \

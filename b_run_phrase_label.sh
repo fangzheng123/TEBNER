@@ -25,7 +25,7 @@ PART_WORD_VEC_PATH=$FORMAT_DATA_DIR/part_word_vec.txt
 GOLD_ENTITY_PATH=$TASK_DATA_DIR/source_data/${TASK_NAME}_gold_entity.txt
 
 ####################短语类别打标数据#####################
-PHRASE_LABEL_PATH=$PHRASE_DIR/phrase_label.txt
+PHRASE_LABEL_PATH=$PHRASE_DIR/knn_phrase_label.txt
 
 # 日志
 LABEL_LOG_FILE=phrase_label_log

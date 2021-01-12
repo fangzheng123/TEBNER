@@ -37,8 +37,10 @@ class BERTWordRun(object):
         # 加载数据
         LogUtil.logger.info("Loading data...")
 
-        train_dataloader = self.bert_data_processor.load_dataset(self.args.train_data_path, is_train=True)
-        dev_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(self.args.dev_data_path, is_dev=True)
+        train_dataloader = self.bert_data_processor.load_dataset(
+            self.args.train_data_path, is_train=True, is_supervised=self.args.do_supervised)
+        dev_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(
+            self.args.dev_data_path, is_dev=True, is_supervised=self.args.do_supervised)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致

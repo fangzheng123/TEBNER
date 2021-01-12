@@ -2,14 +2,13 @@
 import numpy as np
 from sklearn import neighbors
 
-from util.file_util import FileUtil
 
 if __name__ == "__main__":
+    pre = 0.8773
+    recall = 0.5451
 
-    x =[(1,2,"fds"), (2,3, "ffff")]
+    print(2 * pre * recall / (pre + recall))
 
-    if (1,2,"fds") in x:
-        print("fdsfsdsdf")
 
 
 

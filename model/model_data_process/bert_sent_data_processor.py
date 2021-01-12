@@ -32,7 +32,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
 
             token_begin, token_end = entity_obj["bert_token_pos"]
 
-            # 英文实体打标(word tokenize后的首位token打标，其他标注为"X")
+            # 英文实体打标(word tokenize后的首位token打标，其他标注为"X"),测试后发现效果与传统打标一样
             # seq_label[token_begin] = "B-" + entity_obj["type"]
             # seq_label[token_begin+1: token_end+1] = ["X"] * (token_end - token_begin)
             # if len(entity_obj["form"].split()) > 1:
@@ -43,7 +43,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
             #         seq_label[inter_offset] = "I-" + entity_obj["type"]
 
             # 仅训练连接关系
-            if self.model_config.is_only_connect:
+            if self.model_config.is_only_boundary:
                 seq_label[token_begin] = "B-" + "None"
                 seq_label[token_begin + 1:token_end + 1] = ['I-' + "None"] * (token_end - token_begin)
             else:
@@ -52,13 +52,15 @@ class BERTSentDataProcessor(BaseDataProcessor):
 
         return seq_label
 
-    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_pred=False):
+    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_pred=False, is_supervised=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
         :param data_path:
         :param is_train: 是否为训练集
         :param is_dev: 是否为验证集
         :param is_test: 是否为测试集
+        :param is_pred: 是否为预测集
+        :param is_supervised: 是否使用监督数据
         :return:
         """
         all_split_text_obj_list = self.get_split_text_obj(data_path)
@@ -72,10 +74,15 @@ class BERTSentDataProcessor(BaseDataProcessor):
             # 加载序列标签（预测数据无标签）
             seq_label = ["O"] * self.model_config.max_seq_len
             if is_train or is_dev or is_test:
-                if is_train or is_pred:
-                    entity_list = split_text_obj["distance_entity_list"]
-                else:
+                # 监督学习
+                if is_supervised:
                     entity_list = split_text_obj["entity_list"]
+                # 远程监督
+                else:
+                    if is_train or is_pred:
+                        entity_list = split_text_obj["distance_entity_list"]
+                    else:
+                        entity_list = split_text_obj["entity_list"]
 
                 for entity_obj in entity_list:
                     if entity_obj["type"] == "unknown":

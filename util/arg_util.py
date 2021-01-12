@@ -116,6 +116,9 @@ class ArgparseUtil(object):
         self.parser.add_argument("--do_predict", action="store_true")
         self.parser.add_argument("--do_eval", action="store_true")
 
+        # 是否使用监督学习
+        self.parser.add_argument("--do_supervised", action="store_true")
+
         # 模型数据相关参数
         self.parser.add_argument("--train_data_path", default=None, type=str)
         self.parser.add_argument("--dev_data_path", default=None, type=str)
@@ -128,7 +131,7 @@ class ArgparseUtil(object):
         self.bert_model_argparse()
 
         # 是否仅训练实体边界
-        self.parser.add_argument("--do_only_connect", action="store_true")
+        self.parser.add_argument("--do_only_boundary", action="store_true")
 
         # 模型配置相关参数
         self.parser.add_argument("--num_train_epochs", type=int, default=2,

@@ -33,8 +33,8 @@ class PhraseLabelProcess(object):
         # 挖掘短语类型
         phrase_entity_dict = {}
         for phrase in all_phrase_list:
-            if len(phrase) < 4:
-                continue
+            # if len(phrase) < 4:
+            #     continue
             if phrase not in seed_entity_dict and phrase in all_phrase_vec_dict:
                 distance_arr, entity_index_arr = knn_clf.kneighbors(np.array([all_phrase_vec_dict[phrase]]), 1)
                 phrase_entity_dict[phrase] = (entity_name_list[entity_index_arr[0][0]], distance_arr[0][0])

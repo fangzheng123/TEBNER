@@ -41,21 +41,7 @@ class PhraseLabel(object):
 
         return all_entity_vec_dict, all_phrase_vec_dict
 
-    def phrase_label(self, seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict):
-        """
-        短语标注
-        :param seed_entity_dict:
-        :param all_phrase_list:
-        :param all_entity_vec_dict:
-        :param all_phrase_vec_dict:
-        :return:
-        """
-        # 使用KNN模型对短语进行标注
-        knn_phrase_entity_dict = self.label_process.label_phrase_by_knn(
-            seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
-        self.eval_phrase_label(knn_phrase_entity_dict, seed_entity_dict)
-
-    def eval_phrase_label(self, phrase_entity_dict, seed_entity_dict):
+    def get_phrase_label(self, phrase_entity_dict, seed_entity_dict):
         """
         评测短语打标正确率
         :param phrase_entity_dict:
@@ -66,18 +52,21 @@ class PhraseLabel(object):
 
         right_count = 0
         all_count = 0
+        phrase_type_dict = {}
         for phrase, entity_tuple in phrase_entity_dict.items():
             phrase_type = seed_entity_dict[entity_tuple[0]]
             if phrase in gold_entity_dict and phrase_type.lower() == gold_entity_dict[phrase]:
                 right_count += 1
                 all_count += 1
-                print("right:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
             elif phrase in gold_entity_dict:
                 all_count += 1
-                print("wrong:", "####".join([phrase, entity_tuple[0], str(entity_tuple[1]), phrase_type]))
+
+            phrase_type_dict[phrase] = phrase_type
 
         LogUtil.logger.info("短语打标正确数:{0}, 存在于标注集的总短语数: {1}, 短语打标正确率为: {2}".format(
             right_count, all_count, right_count / all_count))
+
+        return phrase_type_dict
 
     def main(self):
         """
@@ -92,8 +81,15 @@ class PhraseLabel(object):
         # 加载实体向量和短语向量
         all_entity_vec_dict, all_phrase_vec_dict = self.load_entity_phrase_vec(seed_entity_dict, all_phrase_list)
 
-        # 打标短语类型
-        self.phrase_label(seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
+        # 使用KNN模型对短语进行标注
+        knn_phrase_entity_dict = self.label_process.label_phrase_by_knn(
+            seed_entity_dict, all_phrase_list, all_entity_vec_dict, all_phrase_vec_dict)
+
+        # 获取短语类别
+        phrase_type_dict = self.get_phrase_label(knn_phrase_entity_dict, seed_entity_dict)
+
+        # 存储mention的类别
+        FileUtil.save_entity_type(phrase_type_dict, self.args.phrase_label_path)
 
 if __name__ == "__main__":
     args = ArgparseUtil().phrase_label_argparse()

@@ -40,7 +40,7 @@ ADD_TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 # 日志
 LABEL_LOG_FILE=label_data_log
 nohup python -u run_model/run_data_label.py \
-    --do_source_distance \
+    --do_add_distance \
     --task_name=$TASK_NAME \
     --seed_entity_path=$SEED_ENTITY_PATH \
     --phrase_path=$PHRASE_PATH \
