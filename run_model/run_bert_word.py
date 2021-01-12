@@ -38,9 +38,11 @@ class BERTWordRun(object):
         LogUtil.logger.info("Loading data...")
 
         train_dataloader = self.bert_data_processor.load_dataset(
-            self.args.train_data_path, is_train=True, is_supervised=self.args.do_supervised)
+            self.args.train_data_path, is_train=True, is_supervised=self.args.do_supervised,
+            is_only_boundary=self.args.do_only_boundary)
         dev_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(
-            self.args.dev_data_path, is_dev=True, is_supervised=self.args.do_supervised)
+            self.args.dev_data_path, is_dev=True, is_supervised=self.args.do_supervised,
+            is_only_boundary=self.args.do_only_boundary)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -48,7 +50,12 @@ class BERTWordRun(object):
 
         # 训练模型
         LogUtil.logger.info("Training model...")
-        self.bert_word_process.train(self.bert_word_model, train_dataloader, dev_dataloader, sent_entity_dict)
+        # 边界模型
+        if args.do_only_boundary:
+            self.bert_word_process.train_boundary(self.bert_word_model, train_dataloader, dev_dataloader)
+        # 联合模型
+        else:
+            self.bert_word_process.train_joint(self.bert_word_model, train_dataloader, dev_dataloader, sent_entity_dict)
 
         LogUtil.logger.info("Finished Training model!!!")
 
@@ -59,7 +66,8 @@ class BERTWordRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        test_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(self.args.test_data_path, is_test=True)
+        test_dataloader, sent_entity_dict = self.bert_data_processor.load_dataset(
+            self.args.test_data_path, is_test=True, is_only_boundary=self.args.do_only_boundary)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -67,7 +75,10 @@ class BERTWordRun(object):
 
         # 测试模型
         LogUtil.logger.info("Testing model...")
-        self.bert_word_process.test(self.bert_word_model, test_dataloader, sent_entity_dict)
+        if args.do_only_boundary:
+            pass
+        else:
+            self.bert_word_process.test_joint(self.bert_word_model, test_dataloader, sent_entity_dict)
 
         LogUtil.logger.info("Finished Testing model!!!")
         
@@ -78,7 +89,8 @@ class BERTWordRun(object):
         """
         # 加载数据
         LogUtil.logger.info("Loading data...")
-        pred_dataloader = self.bert_data_processor.load_dataset(self.args.pred_data_path)
+        pred_dataloader = self.bert_data_processor.load_dataset(
+            self.args.pred_data_path, is_only_boundary=self.args.do_only_boundary)
         LogUtil.logger.info("Finished loading data!!!")
 
         # 固定种子，保证每次运行结果一致
@@ -86,11 +98,14 @@ class BERTWordRun(object):
 
         # 模型预测
         LogUtil.logger.info("Testing model...")
-        all_seq_entity_dict = self.bert_word_process.predict(self.bert_word_model, pred_dataloader)
 
-        # 输出结果
-        LogUtil.logger.info("Output Entity...")
-        self.bert_data_processor.output_entity(all_seq_entity_dict, self.args.pred_data_path, self.args.output_path)
+        if args.do_only_boundary:
+            pass
+        else:
+            all_seq_entity_dict = self.bert_word_process.predict_joint(self.bert_word_model, pred_dataloader)
+            # 输出结果
+            LogUtil.logger.info("Output Entity...")
+            self.bert_data_processor.output_entity(all_seq_entity_dict, self.args.pred_data_path, self.args.output_path)
 
         LogUtil.logger.info("End!!!")
 

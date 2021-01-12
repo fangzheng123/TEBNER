@@ -10,8 +10,16 @@ class BERTWordConfig(BaseConfig):
     def __init__(self, args):
         super().__init__(args)
 
+        # 是否仅训练边界模型
+        self.is_only_boundary = False
+        if self.args.do_only_boundary:
+            self.is_only_boundary = True
+
         # 模型存储路径
-        self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word_version" + ".ckpt"
+        if self.is_only_boundary:
+            self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word_only_boundary" + ".ckpt"
+        else:
+            self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word" + ".ckpt"
 
         # 最大句子长度(padding后，短填长切)
         self.max_seq_len = self.args.max_seq_length
@@ -23,7 +31,6 @@ class BERTWordConfig(BaseConfig):
         self.dropout = self.args.dropout
 
         # 连接关系标签列表, Tie or Break
-        # self.connect_label_list = ["B", "T", "S"]
         self.connect_label_list = ["B", "T"]
         # 类别标签列表
         self.type_label_list = self.get_type_label_list()
@@ -43,5 +50,4 @@ class BERTWordConfig(BaseConfig):
         """
         all_names = self.args.label_names
         type_label_list = all_names.split(",")
-        # type_label_list.append("None")
         return type_label_list

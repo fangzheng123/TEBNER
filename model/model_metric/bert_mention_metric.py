@@ -31,13 +31,6 @@ class BERTMentionMetric(BaseMetric):
             entity_end = entity_ends[index]
             entity_type = entity_types[index]
             entity_type_score = entity_type_scores[index]
-
-            # 序列标注模型预测结果
-            # sent_model_pred_entity_list = all_pred_sent_entity_dict.get(sent_index, [])
-            # sent_model_pred_entity_dict = {str(ele[1])+"_"+str(ele[2]): ele[0] for ele in sent_model_pred_entity_list}
-            # if str(entity_begin)+"_"+str(entity_end) in sent_model_pred_entity_dict:
-            #     entity_type = model_config.label_id_dict[sent_model_pred_entity_dict[str(entity_begin)+"_"+str(entity_end)]]
-
             self.pred_sent_entity_dict.setdefault(sent_index, []).append((entity_begin, entity_end, entity_type, entity_type_score))
 
     def get_metric_result(self, label_sent_entity_dict):

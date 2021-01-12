@@ -6,6 +6,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset, RandomSampler, SequentialSampler
 
 from util.file_util import FileUtil
+from util.log_util import LogUtil
 from model.model_data_process.base_data_processor import BaseDataProcessor
 
 class BERTWordProcessor(BaseDataProcessor):
@@ -15,13 +16,12 @@ class BERTWordProcessor(BaseDataProcessor):
     def __init__(self, model_config):
         super().__init__(model_config)
 
-    def get_token_label(self, entity_list, encoded_dict):
+    def get_token_label(self, entity_list, is_only_boundary=False):
         """
         对序列中每个token进行打标
         两种标注: 一种是tie or break; 一种是entity_type
-        当类别为"unknown"时, 连接关系标注为S(skip)
         :param entity_list:
-        :return: seq_connect_label(B 表示Break, T 表示Tie, S 表示Skip), seq_type_label
+        :return: seq_connect_label(B 表示Break, T 表示Tie), seq_type_label
         """
         seq_connect_label = ["B"] * (self.model_config.max_seq_len - 1)
         seq_type_label = ["None"] * self.model_config.max_seq_len
@@ -39,7 +39,10 @@ class BERTWordProcessor(BaseDataProcessor):
 
             # 当前token与下一个token的连接关系打标
             if entity_obj["type"] == "unknown":
-                seq_connect_label[entity_token_begin: entity_token_end] = ["T"] * (entity_token_end - entity_token_begin)
+                connect_type = "T"
+                if is_only_boundary:
+                    connect_type = "B"
+                seq_connect_label[entity_token_begin: entity_token_end] = [connect_type] * (entity_token_end - entity_token_begin)
                 token_connect_mask[entity_token_begin: entity_token_end] = [0] * (entity_token_end - entity_token_begin)
             else:
                 seq_connect_label[entity_token_begin: entity_token_end] = ["T"] * (entity_token_end - entity_token_begin)
@@ -48,7 +51,7 @@ class BERTWordProcessor(BaseDataProcessor):
 
         return seq_connect_label, seq_type_label, token_connect_mask
 
-    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_supervised=False):
+    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_supervised=False, is_only_boundary=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
         :param data_path:
@@ -76,7 +79,9 @@ class BERTWordProcessor(BaseDataProcessor):
         all_token_encode_list = []
         # 用于评测
         sent_entity_dict = {}
+        sent_count = 0
         for sent_index, split_text_obj in enumerate(all_split_text_obj_list):
+            sent_count += 1
             content = split_text_obj["text"]
             encoded_dict = self.tokenizer.encode_plus(content, truncation=True, padding="max_length",
                                                       max_length=self.model_config.max_seq_len)
@@ -105,7 +110,7 @@ class BERTWordProcessor(BaseDataProcessor):
 
                     # 训练时不考虑unknown类别(即提前挖掘的高质量短语)
                     if entity_obj["type"] != "unknown":
-                        if is_train:
+                        if is_train and not is_only_boundary:
                             # 加 [CLS]
                             all_entity_begins.append(entity_token_begin + 1)
                             all_entity_ends.append(entity_token_end + 1)
@@ -118,8 +123,8 @@ class BERTWordProcessor(BaseDataProcessor):
 
                 # 对序列中每个词语打标
                 seq_connect_label, seq_type_label, token_connect_mask = self.get_token_label(entity_list, encoded_dict)
-                # 训练时每个实体将单独预测，因此一个句子中含有n个实体时，将被复制n次
-                if is_train:
+                # 联合训练时每个实体将单独预测，因此一个句子中含有n个实体时，将被复制n次
+                if is_train and not is_only_boundary:
                     all_token_encode_list.extend([encoded_dict for _ in range(seq_entity_num)])
                     all_token_connect_mask.extend([token_connect_mask for _ in range(seq_entity_num)])
                     all_token_connect_labels.extend([[self.model_config.connect_label_id_dict[ele] for ele
@@ -151,6 +156,8 @@ class BERTWordProcessor(BaseDataProcessor):
             # 保存bios数据格式用
             all_bios_word_list.append(
                 (self.tokenizer.tokenize("[CLS]" + content + "[SEP]"), seq_connect_label, seq_type_label))
+
+        LogUtil.logger.info("切分句子数量: {0}".format(sent_count))
 
         # 将数据存储为BIOS格式, 方便人为检查和查看
         token_label_path = data_path + "_bios"

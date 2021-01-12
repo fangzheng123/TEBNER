@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from util.entity_util import EntityUtil
 from model.model_metric.base_metric import BaseMetric
 
 class BERTWordMetric(BaseMetric):
@@ -7,8 +8,9 @@ class BERTWordMetric(BaseMetric):
     BERT AutoNER 模型评价
     """
 
-    def __init__(self):
+    def __init__(self, model_config):
         super().__init__()
+        self.model_config = model_config
 
     def reset(self):
         super().reset()
@@ -38,9 +40,29 @@ class BERTWordMetric(BaseMetric):
 
         return pred_entity_list
 
-    def update_batch_result(self, token_pred_ids, type_pred_ids, entity_begins, entity_ends, entity_type_labels):
+    def update_boundary_batch_result(self, pred_seq_connect_ids, label_seq_connect_ids):
         """
-        更新相关实体列表
+        更新实体列表
+        :param pred_seq_connect_ids:
+        :param label_seq_connect_ids:
+        :return:
+        """
+        for pre_seq, label_seq in zip(pred_seq_connect_ids, label_seq_connect_ids):
+            pred_connect_index_list = [i for i, connect in enumerate(pre_seq) if connect == 1]
+            pred_boundary_list = EntityUtil.get_entity_boundary_no_seg(pred_connect_index_list, self.model_config.max_seq_len)
+            pred_entity_list = [[entity_begin, entity_end] for entity_begin, entity_end in pred_boundary_list]
+
+            label_connect_index_list = [i for i, connect in enumerate(label_seq) if connect == 1]
+            label_boundary_list = EntityUtil.get_entity_boundary_no_seg(label_connect_index_list, self.model_config.max_seq_len)
+            label_entity_list = [[entity_begin, entity_end] for entity_begin, entity_end in label_boundary_list]
+
+            self.label_entity_list.extend(label_entity_list)
+            self.pred_entity_list.extend(pred_entity_list)
+            self.pred_right_entity_list.extend([pre_entity for pre_entity in pred_entity_list if pre_entity in label_entity_list])
+
+    def update_joint_batch_result(self, token_pred_ids, type_pred_ids, entity_begins, entity_ends, entity_type_labels):
+        """
+        更新实体列表
         :param token_pred_ids: shape=(B,S-1)
         :param type_pred_ids: shape=(B)
         :param entity_begins: shape=(B)
@@ -100,7 +122,17 @@ class BERTWordMetric(BaseMetric):
         acc = len(self.pred_right_entity_list) / len(self.label_entity_list)
         return acc
 
-    def get_metric_result(self, label_sent_entity_dict):
+    def get_boundary_metric_result(self):
+        """
+        获取边界模型评测结果
+        :return:
+        """
+        precision, recall, f1 = self.compute_metric(len(self.label_entity_list), len(self.pred_entity_list),
+                                                    len(self.pred_right_entity_list))
+        metric_result_dict = {"precision": precision, "recall": recall, "f1": f1}
+        return metric_result_dict
+
+    def get_joint_metric_result(self, label_sent_entity_dict):
         """
         计算测试准确率，召回率，F1
         :param label_sent_entity_dict:

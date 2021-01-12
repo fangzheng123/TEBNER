@@ -22,7 +22,7 @@ MODEL_TYPE="biobert-base-cased-v1.1"
 # 预训练模型路径
 PRE_TRAINED_MODEL_DIR=$ROOT_DIR/pre_trained_model/${MODEL_TYPE}/
 # 微调模型存储路径
-FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model
+FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model/dis_supervised_model
 
 # 创建相关目录
 echo ${green}=== Mkdir ===${reset}
@@ -35,9 +35,9 @@ DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 
 # 日志
-LOG_FILE=bert_sent_pipline_log_2
+LOG_FILE=bert_sent_pipeline_log
 
-nohup python -u run_model/run_bert_sent_pipline.py \
+nohup python -u run_model/run_bert_pipeline.py \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
   --pre_trained_model_path=$PRE_TRAINED_MODEL_DIR \

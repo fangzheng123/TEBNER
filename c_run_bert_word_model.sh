@@ -38,6 +38,7 @@ LOG_FILE=dis_supervised_train_bert_word_log
 
 nohup python -u run_model/run_bert_word.py \
   --do_train \
+  --do_only_boundary \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
   --pre_trained_model_path=$PRE_TRAINED_MODEL_DIR \
