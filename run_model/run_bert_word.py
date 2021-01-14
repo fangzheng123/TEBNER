@@ -97,10 +97,11 @@ class BERTWordRun(object):
         self.model_util.seed_everything(args.seed)
 
         # 模型预测
-        LogUtil.logger.info("Testing model...")
+        LogUtil.logger.info("Predicting model...")
 
         if args.do_only_boundary:
-            pass
+            all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list = \
+                self.bert_word_process.predict_boundary(self.bert_word_model, pred_dataloader)
         else:
             all_seq_entity_dict = self.bert_word_process.predict_joint(self.bert_word_model, pred_dataloader)
             # 输出结果

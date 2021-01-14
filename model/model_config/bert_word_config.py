@@ -6,7 +6,6 @@ class BERTWordConfig(BaseConfig):
     """
     BERT AutoNER模型参数配置
     """
-
     def __init__(self, args):
         super().__init__(args)
 
@@ -17,7 +16,7 @@ class BERTWordConfig(BaseConfig):
 
         # 模型存储路径
         if self.is_only_boundary:
-            self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word_only_boundary" + ".ckpt"
+            self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word_only_boundary_2" + ".ckpt"
         else:
             self.model_save_path = self.args.model_dir + "/" + self.args.model_type + "_word" + ".ckpt"
 

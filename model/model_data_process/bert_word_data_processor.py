@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader, TensorDataset, RandomSampler, Sequentia
 
 from util.file_util import FileUtil
 from util.log_util import LogUtil
+from util.entity_util import EntityUtil
 from model.model_data_process.base_data_processor import BaseDataProcessor
 
 class BERTWordProcessor(BaseDataProcessor):
@@ -122,7 +123,8 @@ class BERTWordProcessor(BaseDataProcessor):
                                          self.model_config.type_label_id_dict[entity_obj["type"]]))
 
                 # 对序列中每个词语打标
-                seq_connect_label, seq_type_label, token_connect_mask = self.get_token_label(entity_list, encoded_dict)
+                seq_connect_label, seq_type_label, token_connect_mask = self.get_token_label(
+                    entity_list, is_only_boundary=is_only_boundary)
                 # 联合训练时每个实体将单独预测，因此一个句子中含有n个实体时，将被复制n次
                 if is_train and not is_only_boundary:
                     all_token_encode_list.extend([encoded_dict for _ in range(seq_entity_num)])
@@ -208,6 +210,30 @@ class BERTWordProcessor(BaseDataProcessor):
             return dataloader, sent_entity_dict
         else:
             return dataloader
+
+    def extract_entity(self, all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list):
+        """
+        从序列中挖掘实体
+        :param all_seq_score_list: 所有序列中每个token类别的预测分数
+        :param all_seq_tag_list: 所有序列中每个token预测类别
+        :param all_seq_sent_index_list: 每个序列所对应sent_index
+        :return:
+        """
+        all_sent_entity_dict = {}
+        for seq_score_list, seq_tag_list, sent_index in zip(all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list):
+            connect_index_list = [i for i, connect in enumerate(seq_tag_list) if connect == "T"]
+            pre_entities = EntityUtil.get_entity_boundary_no_seg(connect_index_list, self.model_config.max_seq_len)
+            pre_entities = [["", ele[0], ele[1]] for ele in pre_entities]
+            for entity in pre_entities:
+                token_num = entity[2] - entity[1] + 1
+                if entity[2] - entity[1] + 1 == 0:
+                    token_num = max(1, len(seq_score_list))
+                entity_scores = round(sum(seq_score_list[entity[1]:entity[2] + 1]) / token_num, 2)
+                entity.append(entity_scores)
+
+            all_sent_entity_dict.setdefault(sent_index, []).extend(pre_entities)
+
+        return all_sent_entity_dict
 
     def output_entity(self, all_seq_entity_dict, data_path, output_path):
         """

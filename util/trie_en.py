@@ -120,14 +120,3 @@ class Trie(object):
 if __name__ == "__main__":
     pass
 
-    # word_list = ["国家", "家主", "主席", "平出", "席政", "习近平", "出席"]
-    #
-    # trie = Trie()
-    # trie.build_trie(word_list)
-    #
-    # text = u"国家主席习近平出席政治局会议"
-    # print(text, trie.search_entity(text))
-    # print(text, trie.search_entity2(text))
-
-
-

@@ -206,13 +206,16 @@ class ArgparseUtil(object):
 
         return args
 
-    def bert_sent_pipline_argparse(self):
+    def bert_pipline_argparse(self):
         """
         bert sent pipline模型参数解析
         :return:
         """
         self.bert_sent_add_parse()
         self.parser.add_argument("--dnn_hidden_size", default=256, type=int)
+        self.parser.add_argument("--phrase_label_path", default=None, type=str)
+        self.parser.add_argument("--phrase_path", default=None, type=str)
+        self.parser.add_argument("--pred_boundary_path", default=None, type=str)
 
         args = self.parser.parse_args()
         return args

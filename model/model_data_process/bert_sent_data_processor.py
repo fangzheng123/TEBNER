@@ -4,6 +4,7 @@ import json
 import torch
 from torch.utils.data import DataLoader, TensorDataset, RandomSampler, SequentialSampler
 
+from util.trie_en import Trie
 from util.log_util import LogUtil
 from util.entity_util import EntityUtil
 from util.file_util import FileUtil
@@ -163,6 +164,63 @@ class BERTSentDataProcessor(BaseDataProcessor):
                 entity.append(entity_scores)
 
             all_sent_entity_dict.setdefault(sent_index, []).extend(pre_entities)
+
+        return all_sent_entity_dict
+
+    def load_label_dataset(self, data_path):
+        """
+        加载标注数据
+        :param data_path:
+        :return:
+        """
+        all_split_text_obj_list = self.get_split_text_obj(data_path)
+
+        all_sent_obj_dict = {}
+        for sent_index, split_text_obj in enumerate(all_split_text_obj_list):
+            content = split_text_obj["text"]
+            entity_list = split_text_obj["entity_list"]
+            for entity_obj in entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                entity_obj["bert_token_pos"] = (token_begin + 1, token_end + 1)
+
+            all_sent_obj_dict[sent_index] = split_text_obj
+
+        return all_sent_obj_dict
+
+    def load_phrase_distance_dataset(self, data_path, phrase_type_dict):
+        """
+        加载远程监督数据
+        :param data_path:
+        :param phrase_type_dict:
+        :return:
+        """
+        # 构建字典树进行模式串匹配
+        phrase_trie = Trie()
+        phrase_trie.build_trie(list(phrase_type_dict.keys()))
+
+        all_split_text_obj_list = self.get_split_text_obj(data_path)
+        all_sent_entity_dict = {}
+        for sent_index, split_text_obj in enumerate(all_split_text_obj_list):
+            content = split_text_obj["text"]
+            # 远程标注
+            distance_label_list = []
+            for entity_obj in phrase_trie.search_entity(content):
+                entity_obj["type"] = phrase_type_dict.get(entity_obj["form"], "unknown").lower()
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                entity_obj["bert_token_pos"] = (token_begin + 1, token_end + 1)
+                distance_label_list.append(entity_obj)
+
+            all_sent_entity_dict.setdefault(sent_index, []).extend(distance_label_list)
 
         return all_sent_entity_dict
 

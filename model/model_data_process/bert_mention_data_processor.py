@@ -197,9 +197,6 @@ class BERTMentionDataProcessor(BaseDataProcessor):
                     mention_loc_list.append((token_begin, token_end))
                     all_entity_sent_index_list.append(sent_index)
 
-                # mention_loc_list.append((token_begin, token_end))
-                # all_entity_sent_index_list.append(sent_index)
-
             # 获取真实标注的实体位置及类型
             for label_entity_obj in label_entity_list:
                 # 获取实体在bert分词后的位置

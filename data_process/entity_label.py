@@ -67,7 +67,7 @@ class EntityLabel(object):
         LogUtil.logger.info("标注正确数: {0}, 总标签数: {1}, 远程标注标签数: {2}, 准确率: {3}, 召回率: {4}, F1: {5}"
                             .format(label_right_num, all_golden_num, all_distance_num, pre, recall, f1))
 
-    def generate_distance_label_data(self, text_obj_list) -> list:
+    def generate_distance_label_data(self, text_obj_list, is_test=False) -> list:
         """
         给定实体词典及自由文本，生成ner远程监督数据
         :param text_obj_list: 格式化文本
@@ -80,7 +80,10 @@ class EntityLabel(object):
             distance_label_list = []
             for entity_obj in self.trie.search_entity(sent):
                 entity_obj["type"] = self.entity_type_dict.get(entity_obj["form"], "unknown").lower()
-                distance_label_list.append(entity_obj)
+                if is_test and entity_obj["type"] == "unknown":
+                    continue
+                else:
+                    distance_label_list.append(entity_obj)
 
             text_obj["distance_entity_list"] = distance_label_list
 

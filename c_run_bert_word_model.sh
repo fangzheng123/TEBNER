@@ -1,6 +1,6 @@
 
 # BERT词连接模型
-CUDA_VISIBLE_DEVICES="0"
+CUDA_VISIBLE_DEVICES="1"
 
 # 当前任务领域
 TASK_NAME="bc5cdr"
@@ -34,10 +34,10 @@ TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 
 ###################训练BERT Word模型#####################
 # 日志
-LOG_FILE=dis_supervised_train_bert_word_log
+LOG_FILE=pred_dis_supervised_train_bert_word_log
 
 nohup python -u run_model/run_bert_word.py \
-  --do_train \
+  --do_predict \
   --do_only_boundary \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
@@ -47,6 +47,7 @@ nohup python -u run_model/run_bert_word.py \
   --train_data_path=$TRAIN_DISTANCE_DATA_PATH \
   --dev_data_path=$DEV_DISTANCE_DATA_PATH \
   --test_data_path=$TEST_DISTANCE_DATA_PATH \
+  --pred_data_path=$TEST_DISTANCE_DATA_PATH \
   --label_names=$LABELS \
   --require_improvement=1500 \
   --max_seq_length=256 \

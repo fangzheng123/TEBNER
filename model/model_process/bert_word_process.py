@@ -300,7 +300,7 @@ class BERTWordProcess(object):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
                 input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
-                _entity_begins, _entity_ends, _entity_type_labels, sent_indexs = batch_data
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
                 sent_indexs = sent_indexs.cpu().numpy().tolist()
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
@@ -340,9 +340,27 @@ class BERTWordProcess(object):
         metric_result_dict = self.model_metric.get_joint_metric_result(sent_entity_dict)
         return metric_result_dict
 
+    def test_boundary(self, model, test_loader):
+        """
+        测试分界模型
+        :param model:
+        :param test_loader:
+        :return:
+        """
+        # 加载模型
+        self.model_util.load_model(model, self.model_config.model_save_path, self.model_config.device)
+        model.eval()
+        # 多块卡并行测试
+        if torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        test_loss, test_metric_dict = self.evaluate_boundary(model, test_loader)
+        LogUtil.logger.info("Test Precision: {0}, Test Recall: {1}, Test F1: {2}".format(
+            test_metric_dict["precision"], test_metric_dict["recall"], test_metric_dict["f1"]))
+
     def test_joint(self, model, test_loader, sent_entity_dict):
         """
-        测试模型
+        测试联合模型
         :param model:
         :param test_loader:
         :param sent_entity_dict:
@@ -433,9 +451,56 @@ class BERTWordProcess(object):
 
         return batch_seq_entity_dict
 
+    def predict_boundary(self, model, data_loader):
+        """
+        边界模型预测句子中的实体
+        :param model:
+        :param data_loader:
+        :return:
+        """
+        # 加载模型
+        self.model_util.load_model(model, self.model_config.model_save_path, self.model_config.device)
+        model.eval()
+        # 多块卡并行测试
+        if torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        all_seq_sent_index_list = []
+        all_seq_score_list = []
+        all_seq_tag_list = []
+        LogUtil.logger.info("Batch Num: {0}".format(len(data_loader)))
+        with torch.no_grad():
+            for i, batch_data in enumerate(data_loader):
+                # 将数据加载到gpu
+                batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
+                input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
+
+                sequence_output = model((input_ids, input_mask, token_type_ids))
+                if torch.cuda.device_count() > 1:
+                    # shape=(B,W-1,2)
+                    token_connect_output = model.module.token_connecting(sequence_output)
+                else:
+                    token_connect_output = model.token_connecting(sequence_output)
+
+                # torch.max返回一个元组（最大值列表, 最大值对应的index列表）
+                connect_scores, connect_outputs = torch.max(token_connect_output.data, axis=2)
+
+                connect_scores = connect_scores.cpu().numpy().tolist()
+                connect_outputs = connect_outputs.cpu().numpy().tolist()
+                all_seq_sent_index_list.extend(sent_indexs.cpu().numpy().tolist())
+                all_seq_score_list.extend(connect_scores)
+                for seq in connect_outputs:
+                    all_seq_tag_list.append([self.model_config.connect_id_label_dict[ele] for ele in seq])
+
+                LogUtil.logger.info("Total batch: {0}".format(i))
+
+        # shape=(B,S)
+        return all_seq_score_list, all_seq_tag_list, all_seq_sent_index_list
+
     def predict_joint(self, model, data_loader):
         """
-        预测句子中的实体
+        联合模型预测句子中的实体
         :param model:
         :param data_loader:
         :return:
@@ -455,7 +520,8 @@ class BERTWordProcess(object):
                 # 将数据加载到gpu
                 batch_data = tuple(ele.to(self.model_config.device) for ele in batch_data)
                 input_ids, input_mask, token_type_ids, token_connect_masks, token_connect_labels, \
-                entity_begins, entity_ends, entity_type_labels = batch_data
+                entity_begins, entity_ends, entity_type_labels, sent_indexs = batch_data
+                sent_indexs = sent_indexs.cpu().numpy().tolist()
 
                 sequence_output = model((input_ids, input_mask, token_type_ids))
                 if torch.cuda.device_count() > 1:
@@ -470,7 +536,8 @@ class BERTWordProcess(object):
                 # 根据连接结果获取实体边界
                 seq_index_list, seq_entity_index_dict, seq_connect_score_dict, \
                 entity_begin_list, entity_end_list = self.infer_entity_boundary(connect_scores.cpu().numpy().tolist(),
-                                                                                connect_outputs.cpu().numpy().tolist())
+                                                                                connect_outputs.cpu().numpy().tolist(),
+                                                                                sent_indexs)
 
                 # 构建实体分类数据
                 entity_begins, entity_ends, all_outputs = self.build_entity_typing_data(seq_index_list,

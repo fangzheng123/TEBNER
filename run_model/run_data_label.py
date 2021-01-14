@@ -70,7 +70,7 @@ class DataLabelRun(object):
         entity_label = EntityLabel(seed_entity_dict, new_phrase_list)
         train_distance_obj_list = entity_label.generate_distance_label_data(train_obj_list)
         dev_distance_obj_list = entity_label.generate_distance_label_data(dev_obj_list)
-        test_distance_obj_list = entity_label.generate_distance_label_data(test_obj_list)
+        test_distance_obj_list = entity_label.generate_distance_label_data(test_obj_list, is_test=True)
 
         # 存储训练集、验证集和测试集
         FileUtil.save_text_obj_data(train_distance_obj_list, self.args.add_train_distance_data_path)

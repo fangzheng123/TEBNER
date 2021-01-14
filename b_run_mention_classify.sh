@@ -22,7 +22,7 @@ MODEL_TYPE="biobert-base-cased-v1.1"
 # 预训练模型路径
 PRE_TRAINED_MODEL_DIR=$ROOT_DIR/pre_trained_model/${MODEL_TYPE}/
 # 微调模型存储路径
-FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model
+FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model/dis_supervised_model
 
 # 种子实体文件
 SEED_ENTITY_PATH=$TASK_DATA_DIR/source_data/${TASK_NAME}_dict.txt
@@ -45,7 +45,7 @@ TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
 PREDICT_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
 
 # 日志
-LOG_FILE=mention_classify_add_log
+LOG_FILE=dis_train_mention_classify_log
 
 nohup python -u run_model/run_mention_classify.py \
   --do_train \
