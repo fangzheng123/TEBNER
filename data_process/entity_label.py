@@ -49,8 +49,8 @@ class EntityLabel(object):
                                     if entity_obj["type"] != "unknown"}
 
             for golden_entity in golden_entity_list:
-                if golden_entity["offset"] in distance_entity_dict \
-                        and golden_entity["form"] == distance_entity_dict[golden_entity["offset"]]:
+                if int(golden_entity["offset"]) in distance_entity_dict \
+                        and golden_entity["form"] == distance_entity_dict.get(int(golden_entity["offset"]), ""):
                     label_right_num += 1
                 # else:
                 #     print("gold: " + golden_entity["form"])
@@ -63,7 +63,10 @@ class EntityLabel(object):
 
         pre = label_right_num/all_distance_num
         recall = label_right_num/all_golden_num
-        f1 = 2 * pre * recall / (pre + recall)
+        if pre + recall != 0:
+            f1 = 2 * pre * recall / (pre + recall)
+        else:
+            f1 = 0
         LogUtil.logger.info("标注正确数: {0}, 总标签数: {1}, 远程标注标签数: {2}, 准确率: {3}, 召回率: {4}, F1: {5}"
                             .format(label_right_num, all_golden_num, all_distance_num, pre, recall, f1))
 

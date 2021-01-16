@@ -1,12 +1,13 @@
 
 # Mention分类模型
-CUDA_VISIBLE_DEVICES="1"
+CUDA_VISIBLE_DEVICES="0"
 
 # 当前任务领域
-TASK_NAME="bc5cdr"
+TASK_NAME="laptop"
 
 # 实体类别
-LABELS="chemical,disease"
+# LABELS="chemical,disease"
+LABELS="laptop"
 
 # 根路径
 ROOT_DIR="/data/fangzheng/bert_autoner"
@@ -18,15 +19,20 @@ FORMAT_DATA_DIR=$TASK_DATA_DIR/format
 PHRASE_DIR=$TASK_DATA_DIR/phrase
 
 # 预训练模型类别，如BERT,Robert等
-MODEL_TYPE="biobert-base-cased-v1.1"
+# MODEL_TYPE="biobert-base-cased-v1.1"
+MODEL_TYPE="bert-base-cased"
 # 预训练模型路径
 PRE_TRAINED_MODEL_DIR=$ROOT_DIR/pre_trained_model/${MODEL_TYPE}/
 # 微调模型存储路径
 FINE_TUNING_MODEL_DIR=$TASK_DATA_DIR/model/dis_supervised_model
 
+# 日志目录
+LOG_DIR=${TASK_NAME}_log
+
 # 创建相关目录
 echo ${green}=== Mkdir ===${reset}
 mkdir -p $FINE_TUNING_MODEL_DIR
+mkdir -p $LOG_DIR
 
 ####################用户需提供的数据#####################
 # 模型训练、验证、测试文件
@@ -38,7 +44,7 @@ PHRASE_PATH=$PHRASE_DIR/${TASK_NAME}_autophrase.txt
 PRED_BOUNDARY_PATH=$FORMAT_DATA_DIR/pred_boundary.txt
 
 # 日志
-LOG_FILE=bert_pipeline_log
+LOG_FILE=$LOG_DIR/bert_pipeline_log
 
 nohup python -u run_model/run_bert_pipeline.py \
   --do_only_boundary \
@@ -59,7 +65,6 @@ nohup python -u run_model/run_bert_pipeline.py \
   --max_seq_length=256 \
   --per_eval_batch_step=5 \
   --per_gpu_test_batch_size=2400 \
-  --num_train_epochs=20 \
   --dnn_hidden_size=256 \
   --seed=42 \
   > $LOG_FILE 2>&1 &

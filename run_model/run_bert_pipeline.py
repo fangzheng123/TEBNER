@@ -49,12 +49,13 @@ class BERTSentPiplineRun(object):
         self.bert_sent_model = BertSentModel(self.bert_sent_config).to(self.bert_sent_config.device)
         self.bert_sent_process = BERTSentProcess(self.bert_sent_config)
 
-        # 实体分类模型
-        self.bert_mention_config = BERTMentionConfig(self.args)
-        self.mention_data_processor = BERTMentionDataProcessor(self.bert_mention_config)
-        self.bert_mention_classify_model = BERTMentionClassifyModel(self.bert_mention_config)\
-            .to(self.bert_mention_config.device)
-        self.bert_mention_process = BERTMentionProcess(self.bert_mention_config)
+        # 实体分类模型(由于NCBI及Laptop均只有一个类型实体，无需预测类型，坑数据！！！)
+        if self.args.task_name == "bc5cdr":
+            self.bert_mention_config = BERTMentionConfig(self.args)
+            self.mention_data_processor = BERTMentionDataProcessor(self.bert_mention_config)
+            self.bert_mention_classify_model = BERTMentionClassifyModel(self.bert_mention_config)\
+                .to(self.bert_mention_config.device)
+            self.bert_mention_process = BERTMentionProcess(self.bert_mention_config)
 
     def pred_boundary_in_word(self):
         """
@@ -115,7 +116,7 @@ class BERTSentPiplineRun(object):
         for begin, end in pred_word_begin_end_dict.items():
             all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(1)
         for begin, end in pred_sent_begin_end_dict.items():
-            all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(2)
+            all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(1)
 
         filter_begin_end_dict = {}
         for begin, end_dict in all_begin_end_dict.items():
@@ -126,27 +127,6 @@ class BERTSentPiplineRun(object):
         pred_all_list = [("", begin, end, 0) for begin, end in filter_begin_end_dict.items()]
 
         return pred_all_list
-
-    def eval_boundary_result(self, all_result_obj_list):
-        """
-        评测边界结果
-        :param all_result_obj_list:
-        :return:
-        """
-        pred_num = 0
-        pred_right_num = 0
-        label_num = 0
-        for result_obj in all_result_obj_list:
-            pred_list = [[ele[1], ele[2]] for ele in result_obj["pred_all"]]
-            label_list = [list(ele["bert_token_pos"]) for ele in result_obj["entity_list"]]
-            pred_num += len(pred_list)
-            label_num += len(label_list)
-            pred_right_num += len([pre_entity for pre_entity in pred_list if pre_entity in label_list])
-
-        base_metric = BaseMetric()
-        precision, recall, f1 = base_metric.compute_metric(label_num, pred_num, pred_right_num)
-        metric_result_dict = {"precision": precision, "recall": recall, "f1": f1}
-        LogUtil.logger.info(metric_result_dict)
 
     def get_boundary(self):
         """
@@ -173,7 +153,6 @@ class BERTSentPiplineRun(object):
 
         # 将边界结果存储到文件中
         FileUtil.save_text_obj_data(all_result_obj_list, self.args.pred_boundary_path)
-        self.eval_boundary_result(all_result_obj_list)
 
         return pred_index_entity_dict
 
@@ -192,6 +171,44 @@ class BERTSentPiplineRun(object):
         self.bert_mention_process.test_by_connect_model(
             self.bert_mention_classify_model, test_dataloader, pred_index_entity_dict, all_sent_label_dict)
 
+    def eval_result(self, pred_sent_entity_dict, label_sent_entity_dict):
+        """
+        评测边界结果
+        :param pred_sent_entity_dict:
+        :param label_sent_entity_dict:
+        :return:
+        """
+        pred_num = 0
+        pred_right_num = 0
+        label_num = 0
+
+        for sent_index, label_entity_list in label_sent_entity_dict.items():
+            label_list = [[ele[0], ele[1]] for ele in label_entity_list]
+            label_num += len(label_list)
+
+        for sent_index, pred_entity_list in pred_sent_entity_dict.items():
+            pred_list = [[ele[0], ele[1]] for ele in pred_entity_list]
+            pred_num += len(pred_list)
+            label_list = [[ele[0], ele[1]] for ele in label_sent_entity_dict.get(sent_index, [])]
+            pred_right_num += len([pre_entity for pre_entity in pred_list if pre_entity in label_list])
+
+        base_metric = BaseMetric()
+        precision, recall, f1 = base_metric.compute_metric(label_num, pred_num, pred_right_num)
+        metric_result_dict = {"precision": precision, "recall": recall, "f1": f1}
+        LogUtil.logger.info(metric_result_dict)
+
+    def classify_single_type_entity(self, pred_index_entity_dict):
+        """
+        检测单类别实体
+        :param pred_index_entity_dict:
+        :return:
+        """
+        bert_mention_config = BERTMentionConfig(self.args)
+        mention_data_processor = BERTMentionDataProcessor(bert_mention_config)
+        pred_sent_entity_dict, label_sent_entity_dict = mention_data_processor.get_single_type_entity(
+            self.args.test_data_path, pred_index_entity_dict)
+        self.eval_result(pred_sent_entity_dict, label_sent_entity_dict)
+
     def pipeline(self):
         """
         测试模型
@@ -204,7 +221,12 @@ class BERTSentPiplineRun(object):
         pred_index_entity_dict = self.get_boundary()
 
         # 预测实体类型
-        self.classify_entity(pred_index_entity_dict)
+        if self.args.task_name == "bc5cdr":
+            self.classify_entity(pred_index_entity_dict)
+        else:
+            # NCBI 及 Laptop均只有一个类型实体，无需预测类型
+            self.classify_single_type_entity(pred_index_entity_dict)
+
 
 if __name__ == "__main__":
     bert_sent_pipline = BERTSentPiplineRun(args)

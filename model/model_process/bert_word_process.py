@@ -194,8 +194,8 @@ class BERTWordProcess(object):
                     token_connect_output = model.module.token_connecting(sequence_output)
                     entity_type_output = model.module.entity_typing(sequence_output, entity_begins, entity_ends)
                 else:
-                    token_connect_output = model.module.token_connecting(sequence_output)
-                    entity_type_output = model.module.entity_typing(sequence_output, entity_begins, entity_ends)
+                    token_connect_output = model.token_connecting(sequence_output)
+                    entity_type_output = model.entity_typing(sequence_output, entity_begins, entity_ends)
 
                 # 连接关系损失计算
                 token_connect_loss = self.cal_connect_loss(token_connect_output, token_connect_masks, token_connect_labels)

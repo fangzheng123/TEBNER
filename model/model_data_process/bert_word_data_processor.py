@@ -52,7 +52,7 @@ class BERTWordProcessor(BaseDataProcessor):
 
         return seq_connect_label, seq_type_label, token_connect_mask
 
-    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_supervised=False, is_only_boundary=False):
+    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_supervised=False, is_only_boundary=False, is_skip_unknown=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
         :param data_path:
@@ -60,6 +60,7 @@ class BERTWordProcessor(BaseDataProcessor):
         :param is_dev: 是否为验证集
         :param is_test: 是否为测试集
         :param is_supervised: 是否使用监督数据
+        :param is_skip_unknown: 是否跳过unknown实体
         :return:
         """
         all_split_text_obj_list = self.get_split_text_obj(data_path)
@@ -99,6 +100,9 @@ class BERTWordProcessor(BaseDataProcessor):
                         entity_list = split_text_obj["entity_list"]
                 seq_entity_num = 0
                 for entity_obj in entity_list:
+                    if is_skip_unknown and entity_obj["type"] == "unknown":
+                        continue
+
                     # 获取实体在token列表中的首尾位置
                     entity_token_begin, entity_token_end = self.get_entity_token_pos(entity_obj, content)
 
@@ -109,18 +113,20 @@ class BERTWordProcessor(BaseDataProcessor):
                     # 加 [CLS]
                     entity_obj["bert_token_pos"] = (entity_token_begin + 1, entity_token_end + 1)
 
-                    # 训练时不考虑unknown类别(即提前挖掘的高质量短语)
-                    if entity_obj["type"] != "unknown":
-                        if is_train and not is_only_boundary:
-                            # 加 [CLS]
-                            all_entity_begins.append(entity_token_begin + 1)
-                            all_entity_ends.append(entity_token_end + 1)
-                            all_entity_type_labels.append(self.model_config.type_label_id_dict[entity_obj["type"]])
-                            seq_entity_num += 1
-                        else:
-                            sent_entity_dict.setdefault(sent_index, [])\
-                                .append((entity_token_begin + 1, entity_token_end + 1,
-                                         self.model_config.type_label_id_dict[entity_obj["type"]]))
+                    # 同时训练边界和类型的联合模型
+                    if is_train and not is_only_boundary:
+                        # 联合模型训练时，类别训练跳过unknown实体
+                        if entity_obj["type"] == "unknown":
+                            continue
+                        # 加 [CLS]
+                        all_entity_begins.append(entity_token_begin + 1)
+                        all_entity_ends.append(entity_token_end + 1)
+                        all_entity_type_labels.append(self.model_config.type_label_id_dict[entity_obj["type"]])
+                        seq_entity_num += 1
+                    else:
+                        sent_entity_dict.setdefault(sent_index, []) \
+                            .append((entity_token_begin + 1, entity_token_end + 1,
+                                     self.model_config.type_label_id_dict.get(entity_obj["type"], 0)))
 
                 # 对序列中每个词语打标
                 seq_connect_label, seq_type_label, token_connect_mask = self.get_token_label(

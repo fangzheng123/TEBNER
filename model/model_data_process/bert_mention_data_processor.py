@@ -231,6 +231,56 @@ class BERTMentionDataProcessor(BaseDataProcessor):
 
         return dataloader, all_sent_label_dict
 
+    def get_single_type_entity(self, data_path, all_sent_entity_dict):
+        """
+        获取单类型实体结果
+        :param data_path:
+        :param all_sent_entity_dict:
+        :return:
+        """
+        all_text_obj_list = self.get_split_text_obj(data_path)
+
+        # 处理数据
+        pred_sent_entity_dict = {}
+        label_sent_entity_dict = {}
+        for sent_index, split_text_obj in enumerate(all_text_obj_list):
+            content = split_text_obj["text"]
+
+            pred_entity_list = all_sent_entity_dict.get(sent_index, [])
+            label_entity_list = split_text_obj["entity_list"]
+
+            # 获取远程监督位置
+            distance_token_begin_dict = {}
+            distance_entity_list = split_text_obj["distance_entity_list"]
+            for dis_entity_obj in distance_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(dis_entity_obj, content)
+                # 加[CLS]
+                distance_token_begin_dict[token_begin + 1] = (token_begin + 1, token_end + 1)
+                pred_sent_entity_dict.setdefault(sent_index, []).append((token_begin + 1, token_end + 1))
+
+            # 获取模型预测的实体位置
+            for pred_entity_tuple in pred_entity_list:
+                _, token_begin, token_end, token_score = pred_entity_tuple
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 当起始位置相同时，以远程监督位置为准
+                if token_begin not in distance_token_begin_dict:
+                    # 边界模型预测结果时偏移已经计算[CLS],此处无需加1
+                    pred_sent_entity_dict.setdefault(sent_index, []).append((token_begin, token_end))
+
+            # 获取真实标注的实体位置及类型
+            for label_entity_obj in label_entity_list:
+                # 获取实体在bert分词后的位置
+                token_begin, token_end = self.get_entity_token_pos(label_entity_obj, content)
+                # 实体所在位置超过序列最大长度则当前实体不打标
+                if token_end >= self.model_config.max_seq_len - 2:
+                    continue
+                # 加 [CLS]
+                label_sent_entity_dict.setdefault(sent_index, []).append((token_begin + 1, token_end + 1))
+
+        return pred_sent_entity_dict, label_sent_entity_dict
+
     def output_mention_type(self, data_path, all_mention_type_list, all_mention_score_list):
         """
         输出mention类型

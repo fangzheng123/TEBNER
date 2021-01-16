@@ -53,7 +53,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
 
         return seq_label
 
-    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_pred=False, is_supervised=False):
+    def load_dataset(self, data_path, is_train=False, is_dev=False, is_test=False, is_pred=False, is_supervised=False, is_skip_unknown=False):
         """
         加载模型所需数据，包括训练集，验证集，测试集（有标签） 及预测集合（无标签）
         :param data_path:
@@ -62,6 +62,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
         :param is_test: 是否为测试集
         :param is_pred: 是否为预测集
         :param is_supervised: 是否使用监督数据
+        :param is_skip_unknown: 是否跳过unknown实体
         :return:
         """
         all_split_text_obj_list = self.get_split_text_obj(data_path)
@@ -86,7 +87,7 @@ class BERTSentDataProcessor(BaseDataProcessor):
                         entity_list = split_text_obj["entity_list"]
 
                 for entity_obj in entity_list:
-                    if entity_obj["type"] == "unknown":
+                    if is_skip_unknown and entity_obj["type"] == "unknown":
                         continue
                     # 获取实体在bert分词后的位置
                     token_begin, token_end = self.get_entity_token_pos(entity_obj, content)

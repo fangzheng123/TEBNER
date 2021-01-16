@@ -95,6 +95,8 @@ class MentionClassify(object):
         for mention_form, mention_type_list in phrase_types_dict.items():
             if len(set(mention_type_list)) == 1:
                 phrase_type_dict[mention_form] = mention_type_list[0]
+                if self.args.task_name == "ncbi":
+                    phrase_type_dict[mention_form] = "disease"
 
         # 存储预测中间结果
         FileUtil.save_mention_score(all_mention_result_list, self.args.phrase_type_score_path)

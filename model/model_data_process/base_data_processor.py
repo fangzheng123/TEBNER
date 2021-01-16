@@ -62,13 +62,17 @@ class BaseDataProcessor(object):
         :param data_path:
         :return:
         """
+        all_split_text_obj_list = []
         all_text_obj_list = FileUtil.read_text_obj_data(data_path)
 
-        all_split_text_obj_list = []
-        for text_obj in all_text_obj_list:
-            # 对长文本按句号进行划分
-            split_text_obj_list = self.split_text_obj(text_obj)
-            all_split_text_obj_list.extend(split_text_obj_list)
+        if self.model_config.model_name == "laptop":
+            # laptop中本身即为短文，不用切分句子
+            all_split_text_obj_list = all_text_obj_list
+        else:
+            for text_obj in all_text_obj_list:
+                # 对长文本按句号进行划分
+                split_text_obj_list = self.split_text_obj(text_obj)
+                all_split_text_obj_list.extend(split_text_obj_list)
 
         return all_split_text_obj_list
 
