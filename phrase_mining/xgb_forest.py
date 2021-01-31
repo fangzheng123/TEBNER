@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../../BERTAutoNER")
+sys.path.append("../../TEBNER")
 
 import random
 import numpy as np

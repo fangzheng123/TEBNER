@@ -52,8 +52,7 @@ class LaptopDataProcess(object):
 
 if __name__ == "__main__":
     laptop_data_process = LaptopDataProcess()
-    laptop_data_process.process_laptop_to_json("/Users/bytedance/ner_data/LaptopReview/Laptop_Train_v2.xml",
-                                               "/Users/bytedance/ner_data/LaptopReview/laptop_train.json")
+    laptop_data_process.process_laptop_to_json("", "")
 
 
 

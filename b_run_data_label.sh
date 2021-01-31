@@ -1,9 +1,9 @@
 
 # 当前任务领域
-TASK_NAME="laptop"
+TASK_NAME="bc5cdr"
 
 # 根路径
-ROOT_DIR="/data/fangzheng/bert_autoner"
+ROOT_DIR=""
 # 任务根路径
 TASK_DATA_DIR=$ROOT_DIR/${TASK_NAME}
 # 格式化数据路径
@@ -48,7 +48,7 @@ ADD_TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/add_test_distance_data
 # 日志
 LABEL_LOG_FILE=$LOG_DIR/label_data_log
 nohup python -u run_model/run_data_label.py \
-    --do_add_distance \
+    --do_source_distance \
     --task_name=$TASK_NAME \
     --seed_entity_path=$SEED_ENTITY_PATH \
     --phrase_path=$PHRASE_PATH \

@@ -2,7 +2,7 @@
 
 
 import sys
-sys.path.append("../BERTAutoNER")
+sys.path.append("../TEBNER")
 
 import os
 from util.arg_util import ArgparseUtil

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../BERTAutoNER")
+sys.path.append("../TEBNER")
 
 import os
 from model.model_data_process.phrase_data_processor import PhraseProcessor

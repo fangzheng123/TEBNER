@@ -5,7 +5,7 @@
       <paths name="jump_fang">
         <serverdata>
           <mappings>
-            <mapping deploy="/BERTAutoNER" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/TEBNER" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

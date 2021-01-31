@@ -114,9 +114,6 @@ class Trie(object):
 
         return entity_list
 
-
-
-
 if __name__ == "__main__":
     pass
 

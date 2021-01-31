@@ -122,5 +122,4 @@ class BioMedicalDataProcess(object):
 
 if __name__ == "__main__":
     bio_data_process = BioMedicalDataProcess()
-    bio_data_process.process_txt_to_json("/Users/bytedance/ner_data/NCBI/NCBIdevelopset_corpus.txt",
-                                         "/Users/bytedance/ner_data/NCBI/ncbi_dev.json")
+    bio_data_process.process_txt_to_json("", "")

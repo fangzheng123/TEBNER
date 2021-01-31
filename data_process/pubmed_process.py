@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../../BERTAutoNER")
+sys.path.append("../../TEBNER")
 
 from collections import Counter
 
@@ -83,6 +83,4 @@ class PubmedProcess(object):
 if __name__ == "__main__":
 
     pubmed_process = PubmedProcess()
-    pubmed_process.extract_pubmed_sent("/data/fangzheng/bert_autoner/common_data/pub_name.txt",
-                                       "/data/fangzheng/bert_autoner/pubmed/pubmed_sentence_nltk.txt",
-                                       "/data/fangzheng/bert_autoner/pubmed/pubmed_phrase_sent")
+    pubmed_process.extract_pubmed_sent("", "", "")

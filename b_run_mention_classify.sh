@@ -3,14 +3,13 @@
 CUDA_VISIBLE_DEVICES="1"
 
 # 当前任务领域
-TASK_NAME="laptop"
+TASK_NAME="bc5cdr"
 
 # 实体类别
-# LABELS="chemical,disease"
-LABELS="laptop,none"
+LABELS="chemical,disease"
 
 # 根路径
-ROOT_DIR="/data/fangzheng/bert_autoner"
+ROOT_DIR=""
 # 任务根路径
 TASK_DATA_DIR=$ROOT_DIR/${TASK_NAME}
 # 格式化数据路径
@@ -19,8 +18,8 @@ FORMAT_DATA_DIR=$TASK_DATA_DIR/format
 PHRASE_DIR=$TASK_DATA_DIR/phrase
 
 # 预训练模型类别，如BERT,Robert等
-# MODEL_TYPE="biobert-base-cased-v1.1"
-MODEL_TYPE="bert-base-cased"
+MODEL_TYPE="biobert-base-cased-v1.1"
+# MODEL_TYPE="bert-base-cased"
 
 # 预训练模型路径
 PRE_TRAINED_MODEL_DIR=$ROOT_DIR/pre_trained_model/${MODEL_TYPE}/
@@ -55,7 +54,7 @@ PREDICT_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
 LOG_FILE=$LOG_DIR/dis_train_mention_classify_log
 
 nohup python -u run_model/run_mention_classify.py \
-  --do_predict \
+  --do_train \
   --task_name=$TASK_NAME \
   --gpu_devices=$CUDA_VISIBLE_DEVICES \
   --pre_trained_model_path=$PRE_TRAINED_MODEL_DIR \

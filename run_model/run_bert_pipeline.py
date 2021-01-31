@@ -2,7 +2,7 @@
 
 
 import sys
-sys.path.append("../BERTAutoNER")
+sys.path.append("../TEBNER")
 
 import os
 from util.arg_util import ArgparseUtil
@@ -116,7 +116,7 @@ class BERTSentPiplineRun(object):
         for begin, end in pred_word_begin_end_dict.items():
             all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(1)
         for begin, end in pred_sent_begin_end_dict.items():
-            all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(1)
+            all_begin_end_dict.setdefault(begin, {}).setdefault(end, []).append(2)
 
         filter_begin_end_dict = {}
         for begin, end_dict in all_begin_end_dict.items():
@@ -224,7 +224,6 @@ class BERTSentPiplineRun(object):
         if self.args.task_name == "bc5cdr":
             self.classify_entity(pred_index_entity_dict)
         else:
-            # NCBI 及 Laptop均只有一个类型实体，无需预测类型
             self.classify_single_type_entity(pred_index_entity_dict)
 
 

@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../BERTAutoNER")
+sys.path.append("../TEBNER")
 
 from util.file_util import FileUtil
 from util.arg_util import ArgparseUtil

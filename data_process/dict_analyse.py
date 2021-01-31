@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../../BERTAutoNER")
+sys.path.append("../../TEBNER")
 
 from gensim.models import KeyedVectors
 from nltk import TreebankWordTokenizer
@@ -20,7 +20,7 @@ class DictAnalyse(object):
         pass
 
     def read_entity_name(self):
-        data_path = "/data/fangzheng/bert_autoner/ncbi/source_data/all.json"
+        data_path = "/ncbi/source_data/all.json"
         text_obj_list = FileUtil.read_text_obj_data(data_path)
 
         all_name_list = []
@@ -28,7 +28,7 @@ class DictAnalyse(object):
             entity_name_list = [entity_obj["form"] for entity_obj in text_obj["entity_list"]]
             all_name_list.extend(entity_name_list)
 
-        with open("/data/fangzheng/bert_autoner/ncbi/source_data/ncbi_entity_name.txt", "w",
+        with open("/ncbi/source_data/ncbi_entity_name.txt", "w",
                   encoding="utf-8") as name_file:
             for name in set(all_name_list):
                 name_file.write(name + "\n")
@@ -94,9 +94,9 @@ class DictAnalyse(object):
         分析字典词向量
         :return:
         """
-        all_vec_path = "/data/fangzheng/bert_autoner/word2vec/wikipedia-pubmed-and-PMC-w2v.bin"
+        all_vec_path = "/word2vec/wikipedia-pubmed-and-PMC-w2v.bin"
 
-        entity_name_list = FileUtil.read_raw_data("/data/fangzheng/bert_autoner/bc5cdr/source_data/bc5cdr_entity_name.txt")
+        entity_name_list = FileUtil.read_raw_data("/bc5cdr/source_data/bc5cdr_entity_name.txt")
         entity_name_set = set([name for name in entity_name_list])
 
         all_token_list = []
@@ -120,7 +120,7 @@ class DictAnalyse(object):
 if __name__ == "__main__":
     dict_analyse = DictAnalyse()
 
-    root_dir = "/data/fangzheng/bert_autoner/bc5cdr/source_data/"
+    root_dir = "bc5cdr/source_data/"
     dict_analyse.analyse_dict_data_recall(root_dir + "all.json",
                                           root_dir + "bc5cdr_dict.txt",
                                           root_dir + "bc5cdr_autophrase.txt")

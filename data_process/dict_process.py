@@ -1,7 +1,7 @@
 # encoding: utf-8
 
 import sys
-sys.path.append("../../BERTAutoNER")
+sys.path.append("../../TEBNER")
 
 from util.file_util import FileUtil
 
@@ -28,8 +28,8 @@ class DictProcess(object):
 
 if __name__ == "__main__":
 
-    source_data_path = "/data/fangzheng/bert_autoner/bc5cdr/source_data/bc5cdr_all.json"
-    gold_entity_path = "/data/fangzheng/bert_autoner/bc5cdr/source_data/bc5cdr_gold_entity.txt"
+    source_data_path = ""
+    gold_entity_path = ""
 
     dict_process = DictProcess()
     dict_process.get_gold_entity(source_data_path, gold_entity_path)
