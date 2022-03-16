@@ -61,6 +61,9 @@ class PhraseLabel(object):
             elif phrase in gold_entity_dict:
                 all_count += 1
 
+            if phrase in gold_entity_dict and phrase_type.lower() != gold_entity_dict[phrase]:
+                print(phrase, entity_tuple)
+
             phrase_type_dict[phrase] = phrase_type
 
         LogUtil.logger.info("短语打标正确数:{0}, 存在于标注集的总短语数: {1}, 短语打标正确率为: {2}".format(

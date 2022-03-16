@@ -48,7 +48,7 @@ mkdir -p $LOG_DIR
 TRAIN_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
 DEV_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
 TEST_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/test_distance_data
-PREDICT_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_dev_distance_data
+PREDICT_DISTANCE_DATA_PATH=$FORMAT_DATA_DIR/train_distance_data
 
 # 日志
 LOG_FILE=$LOG_DIR/dis_train_mention_classify_log

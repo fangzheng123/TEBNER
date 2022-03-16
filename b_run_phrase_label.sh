@@ -28,7 +28,7 @@ GOLD_ENTITY_PATH=$TASK_DATA_DIR/source_data/${TASK_NAME}_gold_entity.txt
 PHRASE_LABEL_PATH=$PHRASE_DIR/knn_phrase_label.txt
 
 # 日志
-LABEL_LOG_FILE=phrase_label_log
+LABEL_LOG_FILE=phrase_label_log.txt
 nohup python -u run_model/run_phrase_label.py \
     --task_name=$TASK_NAME \
     --seed_entity_path=$SEED_ENTITY_PATH \
