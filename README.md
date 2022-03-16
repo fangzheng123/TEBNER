@@ -1,6 +1,6 @@
 # TEBNER
 
-Code for ACL 2020 paper:"TEBNER: Domain Specific Named Entity Recognition with Type Expanded Boundary-aware Network"
+Code for EMNLP 2021 paper:"TEBNER: Domain Specific Named Entity Recognition with Type Expanded Boundary-aware Network"
 
 ## Required Inputs
 - **Raw Texts**
