@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SshConfigs">
-    <configs>
-      <sshConfig authType="OPEN_SSH" host="g2c6359316.wicp.vip" id="1bb1d8f0-9c05-438d-a72b-2649f0f03526" port="42032" nameFormat="DESCRIPTIVE" username="fangzheng" />
-    </configs>
-  </component>
-</project>
